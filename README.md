@@ -1,0 +1,14 @@
+# Office Inventory & Asset Tracking System (Laravel)
+
+A robust and professional asset management application built with Laravel to track corporate inventory, monitor asset conditions, and prevent financial loss through proactive warranty tracking.
+
+## 🚀 Key Features
+- **Interactive Dashboard Analytics:** Real-time summary of total assets, condition tracking (Ready, Under Repair, Broken), and total asset valuation.
+- **Proactive Warranty Monitoring:** Automated threshold notification for assets with critical warranty expiration (≤ 30 days) highlighted in dashboard widgets and navbar alerts.
+- **Server-Side DataTables Integration:** Lightning-fast asset filtering and searching handling thousands of records efficiently via Yajra DataTables.
+- **Mobile-Friendly Audit / Scan:** Features a dedicated layout optimized for mobile scanning or direct auditing.
+
+## 🛠️ Tech Stack
+- **Backend:** Laravel 10/11, PHP
+- **Frontend:** Bootstrap 5, Blade, Chart.js
+- **Database & Tools:** MySQL, Yajra DataTables Ajax
