@@ -10,11 +10,9 @@ class Product extends Model
 {
     protected $fillable = [
         'sku', 'name', 'image', 'category_id', 'division_id', 
-        'stock', 'stock_ready', 'stock_repair', 'stock_broken', 
-        'stock_disposed', 'price',
+        'stock', 'price', 'condition',
         'held_by_id', 'location_id', 'usage_type', 'last_audited_at',
-        'purchase_date', 'is_active', 'warranty_expiry_date',
-        'reason'  // ✅ Tambahkan ini
+        'purchase_date', 'is_active', 'warranty_expiry_date', 'supplier_id'
     ];
 
     protected $casts = [
@@ -37,7 +35,7 @@ class Product extends Model
     public function heldBy()
     {
         // Pastikan foreign key-nya benar (held_by_id)
-        return $this->belongsTo(Held_By::class, 'held_by_id');
+        return $this->belongsTo(HeldBy::class, 'held_by_id');
     }
 
     public function location()
@@ -49,25 +47,12 @@ class Product extends Model
         parent::boot();
 
         static::saving(function ($product) {
-            // 1. Hitung total stok (Logika lama Mas Bro)
-            $product->stock = (int)$product->stock_ready + 
-                            (int)$product->stock_repair + 
-                            (int)$product->stock_broken + 
-                            (int)$product->stock_disposed;
-
-            // 2. Logika Update Kolom 'condition' Otomatis
-            // Kita beri prioritas: Jika ada stok ready, maka status Ready. 
-            // Jika ready kosong tapi ada repair, maka status Repair, dst.
-            if ($product->stock_ready > 0) {
-                $product->condition = 'Ready';
-            } elseif ($product->stock_repair > 0) {
-                $product->condition = 'Repair';
-            } elseif ($product->stock_broken > 0) {
-                $product->condition = 'Broken';
-            } elseif ($product->stock_disposed > 0) {
-                $product->condition = 'Disposed';
-            } else {
-                $product->condition = 'Ready'; // Default jika semua nol
+            // Set stock = 1 untuk setiap item (1 SKU = 1 item)
+            $product->stock = 1;
+            
+            // Default condition jika kosong
+            if (empty($product->condition)) {
+                $product->condition = 'ready';
             }
         });
     }
@@ -93,6 +78,16 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function getSupplierNameAttribute()
+    {
+        return $this->supplier->name ?? '-';
     }
 
     // Fungsi ini otomatis mengecek status warna: Hijau, Kuning, atau Abu-abu

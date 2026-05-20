@@ -72,12 +72,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Stok Total</label>
-                            <input type="number" name="stock" id="total_stock" class="form-control bg-light fw-bold" value="0" readonly>
-                            <small class="text-muted">Terjumlah otomatis dari rincian di bawah.</small>
-                        </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-12 mb-3">
                             <label class="form-label fw-bold">Harga (Rp)</label>
                             <input type="text" 
                                 id="inputHarga" 
@@ -126,38 +121,63 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="mb-4">
-                        <label class="fw-bold">Tanggal Pembelian</label>
-                        <input type="date" name="purchase_date" class="form-control" 
-                            value="{{ old('purchase_date', isset($product) ? ($product->purchase_date ? \Carbon\Carbon::parse($product->purchase_date)->format('Y-m-d') : '') : date('Y-m-d')) }}">
                     </div>
 
-                    <div class="mb-4">
-                        <label class="fw-bold">Masa Garansi Berakhir</label>
-                        <input type="date" name="warranty_expiry_date" class="form-control" 
-                            value="{{ old('warranty_expiry_date', (isset($product) && $product->warranty_expiry_date) ? \Carbon\Carbon::parse($product->warranty_expiry_date)->format('Y-m-d') : '') }}">
-                        <small class="text-muted">Kosongkan jika tidak ada garansi.</small>
+                    <div class="card border rounded-3 p-3 mb-4 bg-light">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-box-seam me-2"></i>Informasi Supplier & Pembelian</h5>
+                        
+                        <div class="mb-3">
+                            <label class="fw-bold">Supplier</label>
+                            <div class="input-group">
+                                <select name="supplier_id" id="supplier_select" class="form-select">
+                                    <option value="">-- Pilih Supplier --</option>
+                                    @foreach($suppliers as $s)
+                                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalSupplier">+</button>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="fw-bold">Tanggal Pembelian</label>
+                                <input type="date" name="purchase_date" class="form-control" 
+                                    value="{{ old('purchase_date', isset($product) ? ($product->purchase_date ? \Carbon\Carbon::parse($product->purchase_date)->format('Y-m-d') : '') : date('Y-m-d')) }}">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="fw-bold">Masa Garansi</label>
+                                <input type="date" name="warranty_expiry_date" class="form-control" 
+                                    value="{{ old('warranty_expiry_date', (isset($product) && $product->warranty_expiry_date) ? \Carbon\Carbon::parse($product->warranty_expiry_date)->format('Y-m-d') : '') }}">
+                                <small class="text-muted">Kosongkan jika tidak ada</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="fw-bold d-block">Kondisi</label>
+                            <div class="btn-group w-100" role="group" aria-label="Kondisi">
+                                <input type="radio" class="btn-check" name="condition" id="condition_ready" value="ready" autocomplete="off" checked>
+                                <label class="btn btn-outline-success btn-sm" for="condition_ready">Ready</label>
+                                
+                                <input type="radio" class="btn-check" name="condition" id="condition_repair" value="repair" autocomplete="off">
+                                <label class="btn btn-outline-warning btn-sm" for="condition_repair">Servis</label>
+                                
+                                <input type="radio" class="btn-check" name="condition" id="condition_broken" value="broken" autocomplete="off">
+                                <label class="btn btn-outline-danger btn-sm" for="condition_broken">Rusak</label>
+                                
+                                <input type="radio" class="btn-check" name="condition" id="condition_disposed" value="disposed" autocomplete="off">
+                                <label class="btn btn-outline-secondary btn-sm" for="condition_disposed">Dibuang</label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="row mb-4 text-center">
-                        <div class="col-4">
-                            <label class="small fw-bold text-success">Ready</label>
-                            <input type="number" name="stock_ready" class="form-control form-control-sm unit-input" value="0" min="0">
-                        </div>
-                        <div class="col-4">
-                            <label class="small fw-bold text-warning">Servis</label>
-                            <input type="number" name="stock_repair" class="form-control form-control-sm unit-input" value="0" min="0">
-                        </div>
-                        <div class="col-4">
-                            <label class="small fw-bold text-danger">Rusak</label>
-                            <input type="number" name="stock_broken" class="form-control form-control-sm unit-input" value="0" min="0">
-                        </div>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg fw-bold">💾 Simpan Barang</button>
-                        <a href="/products" class="btn btn-outline-secondary">Batal</a>
+                    <div class="d-grid gap-2 d-md-flex">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold flex-grow-1">
+                            <i class="bi bi-save me-1"></i> Simpan Barang
+                        </button>
+                        <a href="/products" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-x-circle me-1"></i> Batal
+                        </a>
                     </div>
                 </form>
             </div>

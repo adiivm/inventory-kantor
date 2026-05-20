@@ -14,6 +14,9 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 @endif
+
+<h2 class="fw-bold text-dark mb-4"><i class="bi bi-person-circle me-2"></i>My Profile</h2>
+
 <div class="container">
     <div class="row">
         <div class="col-md-4 text-center">

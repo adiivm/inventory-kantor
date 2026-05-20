@@ -6,18 +6,21 @@ use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use Barryvdh\DomPDF\Facade\Pdf;
-use App\Exports\ProductsExport;
+use App\Exports\ProductExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\ProductImport;
+use App\Exports\ProductTemplateExport;
 use App\Models\Category;
 use App\Models\Division;
 use App\Models\ProductLog;
 use Illuminate\Support\Facades\Storage;
 use App\Models\AuditLog;
-use App\Models\Held_by; 
+use App\Models\HeldBy; 
 use App\Models\Location;
-use Illuminate\Support\Facades\Auth;
-use Intervention\Image\Facades\Image;
-use App\Models\ProductCondition;
+
+use App\Models\Supplier;
+
+use App\Models\ProductImage;
 
 class ProductController extends Controller
 {
@@ -25,41 +28,53 @@ class ProductController extends Controller
     public function create() {
         $categories = Category::all();
         $divisions = Division::all();
-        $held_bies = Held_by::all();    // Tambahkan ini
+        $held_bies = HeldBy::all();    // Tambahkan ini
         $locations = Location::all(); // Tambahkan ini
+        $suppliers = Supplier::orderBy('name')->get(); // Supplier
 
         // SAMAKAN NAMANYA: Gunakan $product, jangan $b
         $product = new \App\Models\Product(); 
         
-        $lastProduct = Product::latest('id')->first();
-        $nextNumber = $lastProduct ? $lastProduct->id + 1 : 1;
+        // Ambil SKU terakhir (format: IVM-0000001, IVM-0000002, dst)
+        // Tidak lagi menggunakan tahun - format world-class yang kontinyu global
+        $lastProduct = Product::orderBy('id', 'desc')->first();
         
-        $autoSku = 'IVM-' . date('Y') . '-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+        if ($lastProduct) {
+            // Extract nomor urut dari SKU terakhir (format: IVM-0000023 -> 0000023 -> 23)
+            $parts = explode('-', $lastProduct->sku);
+            $lastNumber = (int)end($parts); // Convert ke int (hilangkan leading zero)
+            $nextNumber = $lastNumber + 1;
+        } else {
+            // Database kosong, mulai dari 1
+            $nextNumber = 1;
+        }
+        
+        // Format SKU global kontinyu (7 digit): IVM-0000001, IVM-0000002, dst
+        $autoSku = 'IVM-' . str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
 
         // Kirim $product ke view
-        return view('product_create', compact('categories', 'divisions', 'autoSku', 'product', 'held_bies','locations'));
+        return view('product_create', compact('categories', 'divisions', 'autoSku', 'product', 'held_bies','locations', 'suppliers'));
     }
 
     public function edit($id) {
-        $this->authorize('update', Product::class); // Gunakan Policy
         $product = Product::findOrFail($id);
+        $this->authorize('update', $product); // Gunakan Policy
 
         // 2. Ambil semua kategori & divisi supaya muncul di dropdown edit
         $categories = Category::all();
         $divisions = Division::all();
-        $held_bies = Held_by::all();    // Tambahkan ini
+        $held_bies = HeldBy::all();    // Tambahkan ini
         $locations = Location::all(); // Tambahkan ini
+        $suppliers = Supplier::orderBy('name')->get();
 
         // 3. Kirim semuanya ke view
-        return view('product_edit', compact('product', 'categories', 'divisions', 'held_bies','locations'));
+        return view('product_edit', compact('product', 'categories', 'divisions', 'held_bies','locations', 'suppliers'));
     }
 
     // Proses hapus data
     public function destroy($id) {
-        if (auth()->user()->role !== 'admin') {
-            return abort(403, 'Cuma Admin yang boleh hapus permanen, Mas Bro!');
-        }
         $product = Product::findOrFail($id);
+        $this->authorize('forceDelete', $product);
         
         // Opsional: Hapus file gambar di storage jika ada agar tidak jadi sampah
         if ($product->images) {
@@ -77,7 +92,7 @@ class ProductController extends Controller
     }
 
     public function exportPdf(Request $request) {
-        $query = Product::with(['category', 'division']);
+        $query = Product::with(['category', 'division', 'supplier']);
 
         // ✅ Validasi input terlebih dahulu
         $validated = $request->validate([
@@ -141,8 +156,8 @@ class ProductController extends Controller
 
         $fileName = 'laporan-inventory-' . date('d-m-Y_H-i') . '.xlsx';
 
-        // Pastikan di class ProductsExport Mas Bro sudah ada __construct($filters)
-        return Excel::download(new ProductsExport($filters), $fileName);
+        // Pastikan di class ProductExport Mas Bro sudah ada __construct($filters)
+        return Excel::download(new ProductExport($filters), $fileName);
     }
 
     public function store(Request $request) {
@@ -150,33 +165,22 @@ class ProductController extends Controller
         $request->validate([
             'sku'            => 'required|unique:products,sku',
             'name'           => 'required',
-            'stock_ready'    => 'required|integer|min:0',
-            'stock_repair'   => 'required|integer|min:0',
-            'stock_broken'   => 'required|integer|min:0',
-            'images.*'       => 'nullable|image|mimes:jpg,jpeg,png|max:10240', // Validasi tiap file di array
+            'condition'      => 'required|in:ready,repair,broken,disposed',
+            'images.*'       => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'warranty_expiry_date' => 'nullable|date',
             'purchase_date' => 'nullable|date',
         ], [
             'sku.unique' => 'Waduh Mas Bro, SKU ini sudah dipakai barang lain!'
         ]);
 
-        // 2. Hitung total stok
-        $ready  = $request->stock_ready ?? 0;
-        $repair = $request->stock_repair ?? 0;
-        $broken = $request->stock_broken ?? 0;
-        $totalStock = $ready + $repair + $broken;
-
-        // 3. Simpan ke Database Produk TERLEBIH DAHULU
-        // Ini agar kita dapat ID Produk untuk relasi gambar
+        // Simpan ke Database Produk
         $product = Product::create([
             'sku'           => $request->sku,
             'name'          => $request->name,
             'category_id'   => $request->category_id,
             'division_id'   => $request->division_id,
-            'stock'         => $totalStock, // Pastikan kolom 'stock' ada di tabel
-            'stock_ready'   => $ready,
-            'stock_repair'  => $repair,
-            'stock_broken'  => $broken,
+            'stock'         => 1,
+            'condition'     => $request->condition,
             'price'         => $request->price,
             'held_by_id'    => $request->held_by_id,       
             'location_id'   => $request->location_id,     
@@ -184,26 +188,34 @@ class ProductController extends Controller
             'purchase_date' => $request->purchase_date,
             'is_active'     => 'active',
             'warranty_expiry_date' => $request->warranty_expiry_date,
+            'supplier_id'    => $request->supplier_id,
         ]);
 
-        // 4. Proses Upload Banyak Gambar (Cukup SATU kali looping)
+        // Log untuk CREATE
+        $supplierName = $request->supplier_id ? Supplier::find($request->supplier_id)->name : '-';
+        ProductLog::create([
+            'product_id' => $product->id,
+            'action' => 'CREATE',
+            'description' => "Barang baru ditambahkan (Supplier: $supplierName)",
+            'old_stock' => 0,
+            'new_stock' => 1,
+            'user_name' => auth()->user()->name ?? 'Admin',
+        ]);
+
+        // 4. Proses Upload Banyak Gambar
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
-                // ✅ Compress & resize
-                $image = Image::make($file)
-                    ->resize(1200, 800, function ($constraint) {
-                        $constraint->aspectRatio();
-                        $constraint->upsize();
-                    })
-                    ->encode('jpg', 75); // 75% quality
-                
-                $filename = time() . '_' . uniqid() . '.jpg';
-                Storage::disk('public')->put('products/' . $filename, $image);
-                
-                $product->images()->create([
-                    'image_path' => $filename,
-                    'is_primary' => false // Gambar tambahan
-                ]);
+                try {
+                    $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->storeAs('products', $filename, 'public');
+                    
+                    $product->images()->create([
+                        'image_path' => $filename,
+                        'is_primary' => false
+                    ]);
+                } catch (\Exception $e) {
+                    return back()->with('error', 'Gagal upload gambar: ' . $e->getMessage());
+                }
             }
         }
 
@@ -211,10 +223,10 @@ class ProductController extends Controller
     }
 
     public function update(Request $request, $id) {
-        $this->authorize('update', Product::class);
         $product = Product::with(['category', 'division', 'heldBy', 'location'])->findOrFail($id);
+        $this->authorize('update', $product);
         
-        $oldData = $product->toArray();
+        $oldData = $product->getOriginal();
         $oldCategoryName = $product->category->name ?? '-';
         $oldDivisionName = $product->division->name ?? '-';
         $oldHeldByName   = $product->heldBy->name ?? '-';
@@ -223,18 +235,14 @@ class ProductController extends Controller
         $request->validate([
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'name'  => 'required',
+            'condition' => 'required|in:ready,repair,broken,disposed',
             'warranty_expiry_date' => 'nullable|date',
             'purchase_date' => 'nullable|date',
         ]);
-        $totalNew = ($request->stock_ready ?? 0) + ($request->stock_repair ?? 0) + ($request->stock_broken ?? 0);
 
-        $filename = $product->image;
+$filename = $product->image;
         
-        // ✅ HAPUS BAGIAN INI (duplikasi pertama)
-        
-        // ✅ SATU-SATUNYA upload logic (baris 200-an)
-        $logDetails = [];
-        
+        // Proses upload gambar dulu
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
@@ -248,84 +256,192 @@ class ProductController extends Controller
                     'is_primary' => false 
                 ]);
             }
+        }
+
+        // CEK PERUBAHAN SEBELUM UPDATE
+        $logDetails = [];
+        
+        // A. Condition
+        if (isset($oldData['condition']) && $oldData['condition'] != $request->condition) {
+            $conditionLabels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
+            $oldLabel = $conditionLabels[$oldData['condition']] ?? $oldData['condition'];
+            $newLabel = $conditionLabels[$request->condition] ?? $request->condition;
+            $logDetails[] = "Kondisi: ($oldLabel → $newLabel)";
+        }
+
+        // B. Data Teks
+        $textFields = ['name' => 'Nama', 'sku' => 'SKU'];
+        foreach ($textFields as $key => $label) {
+            if (isset($oldData[$key]) && $oldData[$key] != $request->$key) {
+                $logDetails[] = "$label: ({$oldData[$key]} → {$request->$key})";
+            }
+        }
+        if (isset($oldData['price']) && (int)$oldData['price'] != (int)$request->price) {
+            $logDetails[] = "Harga: ({$oldData['price']} → {$request->price})";
+        }
+
+        // C. Relasi
+        if (isset($oldData['category_id']) && $oldData['category_id'] != $request->category_id) {
+            $newCat = \App\Models\Category::find($request->category_id)->name ?? '-';
+            $logDetails[] = "Kategori: ($oldCategoryName → $newCat)";
+        }
+        if (isset($oldData['division_id']) && $oldData['division_id'] != $request->division_id) {
+            $newDiv = \App\Models\Division::find($request->division_id)->name ?? '-';
+            $logDetails[] = "Divisi: ($oldDivisionName → $newDiv)";
+        }
+        if (isset($oldData['location_id']) && $oldData['location_id'] != $request->location_id) {
+            $newLoc = \App\Models\Location::find($request->location_id)->name ?? '-';
+            $logDetails[] = "Lokasi: ($oldLocationName → $newLoc)";
+        }
+        if (isset($oldData['held_by_id']) && $oldData['held_by_id'] != $request->held_by_id) {
+            $newHeld = \App\Models\HeldBy::find($request->held_by_id)->name ?? '-';
+            $logDetails[] = "Pemegang: ($oldHeldByName → $newHeld)";
+        }
+        
+        // Supplier
+        $oldSupplierId = isset($oldData['supplier_id']) ? (int)$oldData['supplier_id'] : null;
+        $newSupplierId = $request->supplier_id ? (int)$request->supplier_id : null;
+        
+        if ($oldSupplierId !== $newSupplierId) {
+            $oldSupplier = $oldSupplierId ? (\App\Models\Supplier::find($oldSupplierId)->name ?? '-') : '(Tidak ada)';
+            $newSupplier = $newSupplierId ? (\App\Models\Supplier::find($newSupplierId)->name ?? '-') : '(Tidak ada)';
+            $logDetails[] = "Supplier: $oldSupplier → $newSupplier";
+        }
+
+        // Tgl Beli
+        if (isset($oldData['purchase_date'])) {
+            $oldDate = $oldData['purchase_date'] ? \Carbon\Carbon::parse($oldData['purchase_date'])->format('Y-m-d') : null;
+            $newDate = $request->purchase_date ? \Carbon\Carbon::parse($request->purchase_date)->format('Y-m-d') : null;
+            if ($oldDate !== $newDate) {
+                $oldP = \Carbon\Carbon::parse($oldData['purchase_date'])->format('d-m-Y');
+                $newP = \Carbon\Carbon::parse($request->purchase_date)->format('d-m-Y');
+                $logDetails[] = "Tgl Beli: ($oldP → $newP)";
+            }
+        }
+
+        // Garansi
+        if (isset($oldData['warranty_expiry_date'])) {
+            $oldDate = $oldData['warranty_expiry_date'] ? \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('Y-m-d') : null;
+            $newDate = $request->warranty_expiry_date ? \Carbon\Carbon::parse($request->warranty_expiry_date)->format('Y-m-d') : null;
+            if ($oldDate !== $newDate) {
+                $oldW = \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('d-m-Y');
+                $newW = \Carbon\Carbon::parse($request->warranty_expiry_date)->format('d-m-Y');
+                $logDetails[] = "Garansi: ($oldW → $newW)";
+            }
+        }
+
+        // Tambah log jika ada foto baru
+        if ($request->hasFile('images')) {
             $logDetails[] = "Menambahkan " . count($request->file('images')) . " foto baru";
         }
 
-        // 4. Update Database
+        // Update Database
         $product->update([
             'sku' => $request->sku, 'name' => $request->name, 'image' => $filename,
             'category_id' => $request->category_id, 'division_id' => $request->division_id,
-            'stock' => $totalNew, 'stock_ready' => $request->stock_ready,
-            'stock_repair' => $request->stock_repair, 'stock_broken' => $request->stock_broken,
+            'stock' => 1,
+            'condition' => $request->condition,
+            'price' => $request->price, 'held_by_id' => $request->held_by_id,       
+            'location_id' => $request->location_id, 'usage_type' => $request->usage_type,
+            'purchase_date' => $request->purchase_date,
+            'warranty_expiry_date' => $request->warranty_expiry_date,
+            'supplier_id' => $request->supplier_id,
+        ]);
+
+        // CEK PERUBAHAN SEBELUM UPDATE
+        $logDetails = [];
+        
+        // A. Condition
+        if (isset($oldData['condition']) && $oldData['condition'] != $request->condition) {
+            $conditionLabels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
+            $oldLabel = $conditionLabels[$oldData['condition']] ?? $oldData['condition'];
+            $newLabel = $conditionLabels[$request->condition] ?? $request->condition;
+            $logDetails[] = "Kondisi: ($oldLabel → $newLabel)";
+        }
+
+        // B. Data Teks (Lama -> Baru)
+        $textFields = ['name' => 'Nama', 'sku' => 'SKU'];
+        foreach ($textFields as $key => $label) {
+            if (isset($oldData[$key]) && $oldData[$key] != $request->$key) {
+                $logDetails[] = "$label: ({$oldData[$key]} → {$request->$key})";
+            }
+        }
+        // Price comparison (handle number vs string)
+        if (isset($oldData['price']) && (int)$oldData['price'] != (int)$request->price) {
+            $logDetails[] = "Harga: ({$oldData['price']} → {$request->price})";
+        }
+
+        // C. Relasi (Nama Lama -> Nama Baru)
+        if (isset($oldData['category_id']) && $oldData['category_id'] != $request->category_id) {
+            $newCat = \App\Models\Category::find($request->category_id)->name ?? '-';
+            $logDetails[] = "Kategori: ($oldCategoryName → $newCat)";
+        }
+        if (isset($oldData['division_id']) && $oldData['division_id'] != $request->division_id) {
+            $newDiv = \App\Models\Division::find($request->division_id)->name ?? '-';
+            $logDetails[] = "Divisi: ($oldDivisionName → $newDiv)";
+        }
+        if (isset($oldData['location_id']) && $oldData['location_id'] != $request->location_id) {
+            $newLoc = \App\Models\Location::find($request->location_id)->name ?? '-';
+            $logDetails[] = "Lokasi: ($oldLocationName → $newLoc)";
+        }
+        if (isset($oldData['held_by_id']) && $oldData['held_by_id'] != $request->held_by_id) {
+            $newHeld = \App\Models\HeldBy::find($request->held_by_id)->name ?? '-';
+            $logDetails[] = "Pemegang: ($oldHeldByName → $newHeld)";
+        }
+        
+        // Supplier
+        $oldSupplierId = isset($oldData['supplier_id']) ? (int)$oldData['supplier_id'] : null;
+        $newSupplierId = $request->supplier_id ? (int)$request->supplier_id : null;
+        if ($oldSupplierId !== $newSupplierId) {
+            $oldSupplier = $oldSupplierId ? (\App\Models\Supplier::find($oldSupplierId)->name ?? '-') : '(Tidak ada)';
+            $newSupplier = $newSupplierId ? (\App\Models\Supplier::find($newSupplierId)->name ?? '-') : '(Tidak ada)';
+            $logDetails[] = "Supplier: $oldSupplier → $newSupplier";
+        }
+
+        // Tgl Beli - parsing karena oldData bisa berupa ISO string
+        if (!empty($oldData['purchase_date'])) {
+            $oldDateVal = \Carbon\Carbon::parse($oldData['purchase_date'])->format('Y-m-d');
+        } else {
+            $oldDateVal = null;
+        }
+        $newDateVal = $request->purchase_date ? \Carbon\Carbon::parse($request->purchase_date)->format('Y-m-d') : null;
+        
+        if ($oldDateVal !== $newDateVal) {
+            $oldP = !empty($oldDateVal) ? \Carbon\Carbon::parse($oldDateVal)->format('d-m-Y') : '-';
+            $newP = !empty($newDateVal) ? \Carbon\Carbon::parse($newDateVal)->format('d-m-Y') : '-';
+            $logDetails[] = "Tgl Beli: ($oldP → $newP)";
+        }
+
+        // Garansi
+        if (!empty($oldData['warranty_expiry_date'])) {
+            $oldWarrantyVal = \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('Y-m-d');
+        } else {
+            $oldWarrantyVal = null;
+        }
+        $newWarrantyVal = $request->warranty_expiry_date ? \Carbon\Carbon::parse($request->warranty_expiry_date)->format('Y-m-d') : null;
+        
+        if ($oldWarrantyVal !== $newWarrantyVal) {
+            $oldW = !empty($oldWarrantyVal) ? \Carbon\Carbon::parse($oldWarrantyVal)->format('d-m-Y') : '-';
+            $newW = !empty($newWarrantyVal) ? \Carbon\Carbon::parse($newWarrantyVal)->format('d-m-Y') : '-';
+            $logDetails[] = "Garansi: ($oldW → $newW)";
+        }
+
+        // Tambah log jika ada foto baru
+        if ($request->hasFile('images')) {
+            $logDetails[] = "Menambahkan " . count($request->file('images')) . " foto baru";
+        }
+
+        // Update Database
+        $product->update([
+            'sku' => $request->sku, 'name' => $request->name, 'image' => $filename,
+            'category_id' => $request->category_id, 'division_id' => $request->division_id,
+            'stock' => 1,
+            'condition' => $request->condition,
             'price' => $request->price, 'held_by_id' => $request->held_by_id,       
             'location_id' => $request->location_id, 'usage_type' => $request->usage_type,
             'purchase_date' => $request->purchase_date,
             'warranty_expiry_date' => $request->warranty_expiry_date,
         ]);
-
-        // 5. LOGIKA LOG DETAIL (BOOM!)
-        $logDetails = [];
-
-        // A. Stok (Selisih)
-        $stockFields = ['stock_ready' => 'Ready', 'stock_repair' => 'Repair', 'stock_broken' => 'Broken'];
-        foreach ($stockFields as $key => $label) {
-            if ($oldData[$key] != $request->$key) {
-                $diff = $request->$key - $oldData[$key];
-                $tanda = $diff > 0 ? "+" : "";
-                $logDetails[] = "$label ($tanda$diff)";
-            }
-        }
-
-        // B. Data Teks (Lama -> Baru)
-        $textFields = ['name' => 'Nama', 'price' => 'Harga', 'sku' => 'SKU'];
-        foreach ($textFields as $key => $label) {
-            if ($product->wasChanged($key)) {
-                $logDetails[] = "$label: ({$oldData[$key]} → {$product->$key})";
-            }
-        }
-
-        // C. Relasi (Nama Lama -> Nama Baru)
-        if ($product->wasChanged('category_id')) {
-            $newCat = \App\Models\Category::find($request->category_id)->name ?? '-';
-            $logDetails[] = "Kategori: ($oldCategoryName → $newCat)";
-        }
-        if ($product->wasChanged('division_id')) {
-            $newDiv = \App\Models\Division::find($request->division_id)->name ?? '-';
-            $logDetails[] = "Divisi: ($oldDivisionName → $newDiv)";
-        }
-        if ($product->wasChanged('location_id')) {
-            $newLoc = \App\Models\Location::find($request->location_id)->name ?? '-';
-            $logDetails[] = "Lokasi: ($oldLocationName → $newLoc)";
-        }
-        if ($product->wasChanged('held_by_id')) {
-            $newHeld = \App\Models\Held_by::find($request->held_by_id)->name ?? '-';
-            $logDetails[] = "Pemegang: ($oldHeldByName → $newHeld)";
-        }
-        if ($product->wasChanged('purchase_date')) {
-            $oldP = $oldData['purchase_date'] ? \Carbon\Carbon::parse($oldData['purchase_date'])->format('d-m-Y') : '-';
-            $newP = $product->purchase_date ? \Carbon\Carbon::parse($product->purchase_date)->format('d-m-Y') : '-';
-            $logDetails[] = "Tgl Beli: ($oldP → $newP)";
-        }
-        if ($product->wasChanged('warranty_expiry_date')) {
-            $oldW = $oldData['warranty_expiry_date'] ? \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('d-m-Y') : '-';
-            $newW = $product->warranty_expiry_date ? \Carbon\Carbon::parse($product->warranty_expiry_date)->format('d-m-Y') : '-';
-            $logDetails[] = "Garansi: ($oldW → $newW)";
-        }
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $file) {
-                // Buat nama unik untuk tiap foto
-                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('products', $filename, 'public');
-
-                // Simpan ke tabel relasi product_images
-                $product->images()->create([
-                    'image_path' => $filename,
-                    'is_primary' => false // Foto tambahan
-                ]);
-            }
-            $logDetails[] = "Menambahkan " . count($request->file('images')) . " foto baru";
-        }
-        
 
         $description = count($logDetails) > 0 ? implode(' | ', $logDetails) : "Update info tanpa perubahan data";
 
@@ -334,7 +450,7 @@ class ProductController extends Controller
             'action' => 'UPDATE',
             'description' => $description,
             'old_stock' => $oldData['stock'],
-            'new_stock' => $totalNew,
+            'new_stock' => 1, // Stock selalu 1 karena 1 SKU = 1 item
             'user_name' => auth()->user()->name ?? 'Admin', 
         ]);
 
@@ -345,7 +461,7 @@ class ProductController extends Controller
         // 1. Data untuk Modal Create/Edit & Filter Dropdown
         $categories = \App\Models\Category::all(); 
         $divisions = \App\Models\Division::all();
-        $held_bies = \App\Models\Held_by::all(); 
+        $held_bies = \App\Models\HeldBy::all(); 
         $locations = \App\Models\Location::all();
 
         // 2. Jika request datang dari DataTables (AJAX)
@@ -370,17 +486,50 @@ class ProductController extends Controller
             if ($request->filled('held_by_id')) { $query->where('held_by_id', $request->held_by_id); }
             if ($request->filled('location_id')) { $query->where('location_id', $request->location_id); }
 
-            // --- Filter Kondisi (Tetap Sama) ---
-            if ($request->filled('condition')) {
-                if ($request->condition == 'ready') { $query->where('stock_ready', '>', 0); }
-                elseif ($request->condition == 'repair') { $query->where('stock_repair', '>', 0); }
-                elseif ($request->condition == 'broken') { $query->where('stock_broken', '>', 0); }
+            // --- Filter Kondisi ---
+            if ($request->get('condition') == 'ready') {
+                $query->where('condition', 'ready');
+            } elseif ($request->get('condition') == 'repair') {
+                $query->whereIn('condition', ['repair', 'broken']);
+            }
+
+            // --- Filter Garansi ---
+            $today = now()->format('Y-m-d');
+            $thirtyDaysFromNow = now()->addDays(30)->format('Y-m-d');
+            
+            $warranty_status = $request->get('warranty_status');
+            if ($warranty_status == 'critical') {
+                $query->whereNotNull('warranty_expiry_date')
+                      ->whereDate('warranty_expiry_date', '>=', $today)
+                      ->whereDate('warranty_expiry_date', '<=', $thirtyDaysFromNow);
+            } elseif ($warranty_status == 'expired') {
+                $query->whereNotNull('warranty_expiry_date')
+                      ->whereDate('warranty_expiry_date', '<', $today);
+            }
+
+            // --- Filter Search SKU (dari klik lonceng) ---
+            if ($request->has('search_sku') && $request->search_sku != '') {
+                $query->where('sku', $request->search_sku);
             }
 
             return Datatables::of($query)
                 ->addIndexColumn()
+                ->addColumn('checkbox', function($row) {
+                    return '<input type="checkbox" class="product-checkbox" value="'.$row->id.'">';
+                })
                 ->addColumn('sku_custom', function($row) {
-                    return '<span class="badge bg-'. $row->warranty_color .' shadow-sm">'. $row->sku .'</span>';
+                    $expiry = $row->warranty_expiry_date ? \Carbon\Carbon::parse($row->warranty_expiry_date) : null;
+                    $now = \Carbon\Carbon::now();
+                    
+                    if (!$expiry || $expiry->isPast()) {
+                        $badge = '<span class="badge bg-secondary text-white d-inline-block p-2">' . $row->sku . '</span>';
+                    } elseif ($now->diffInDays($expiry) <= 30) {
+                        $badge = '<span class="badge bg-warning text-dark d-inline-block p-2">' . $row->sku . '</span>';
+                    } else {
+                        $badge = '<span class="badge bg-success text-white d-inline-block p-2">' . $row->sku . '</span>';
+                    }
+                    
+                    return $badge;
                 })
                 
                 // --- MODIFIKASI: Logika Kolom Nama Asset & Audit ---
@@ -442,27 +591,37 @@ class ProductController extends Controller
                     $location = $row->location ? $row->location->name : 'Ruang Belum Diatur';
                     return '<strong>' . $holder . '</strong><br><small class="text-muted">' . $location . '</small>';
                 })
+                ->addColumn('audit_info', function($row) {
+                    $audit = $row->latestAudit;
+                    if (!$audit) {
+                        return '<span class="text-danger small">Belum pernah</span>';
+                    }
+                    $tgl = \Carbon\Carbon::parse($audit->audit_date)->format('d/m/Y');
+                    $auditor = $audit->auditor_name ?? '-';
+                    $notes = $audit->notes ? '<br><small class="text-muted text-truncate" style="max-width: 150px; display: inline-block;" title="'.$audit->notes.'">' . substr($audit->notes, 0, 30) . '...</small>' : '';
+                    return '<strong class="text-primary">' . $auditor . '</strong><br><small class="text-muted">' . $tgl . '</small>' . $notes;
+                })
                 ->addColumn('action', function($row) {
-                    $deleteBtn = auth()->user()->role === 'Admin' ? '
-                                <button type="button" class="btn btn-sm text-white p-1" style="background-color: #dd4b39; width: 35px;" onclick="forceDelete('.$row->id.')" title="Delete Permanen">
-                                    <i class="bi bi-trash fs-6"></i><br><small style="font-size: 9px;">Del</small>
+                    $deleteBtn = strtolower(auth()->user()->role) === 'admin' ? '
+                                <button type="button" class="btn btn-sm btn-danger" onclick="forceDelete('.$row->id.')" title="Delete Permanen">
+                                    <i class="bi bi-trash"></i>
                                 </button>' : '';
                     
                     return '
-                        <div class="d-flex gap-1 justify-content-center">
-                            <button class="btn btn-sm text-white p-1" style="background-color: #00c0ef; width: 35px;" onclick="showLogs('.$row->id.')" title="Log History">
-                                <i class="bi bi-journal-text fs-6"></i><br><small style="font-size: 9px;">Log</small>
+                        <div class="d-flex gap-1 justify-content-center justify-content-md-start action-buttons">
+                            <button class="btn btn-sm btn-info text-white" onclick="showLogs('.$row->id.')" title="Log History">
+                                <i class="bi bi-journal-text"></i>
                             </button>
-                            <a href="'.route('product.edit', $row->id).'" class="btn btn-sm text-white p-1" style="background-color: #f39c12; width: 35px;" title="Edit Data">
-                                <i class="bi bi-pencil fs-6"></i><br><small style="font-size: 9px;">Edit</small>
+                            <a href="'.route('product.edit', $row->id).'" class="btn btn-sm btn-warning text-white" title="Edit Data">
+                                <i class="bi bi-pencil"></i>
                             </a>
-                            <button type="button" class="btn btn-sm border text-dark bg-white p-1" style="width: 35px;" onclick="archiveProduct('.$row->id.')" title="Archive to Gudang">
-                                <i class="bi bi-box-seam fs-6"></i><br><small style="font-size: 9px;">Arc</small>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="archiveProduct('.$row->id.')" title="Archive to Gudang">
+                                <i class="bi bi-box-seam"></i>
                             </button>
                             ' . $deleteBtn . '
                         </div>';
                 })
-                ->rawColumns(['sku_custom', 'asset_info', 'image_thumb', 'condition_badge', 'holder_info', 'action'])
+                ->rawColumns(['checkbox', 'sku_custom', 'asset_info', 'image_thumb', 'condition_badge', 'holder_info', 'action'])
                 ->make(true);
         }
 
@@ -514,20 +673,19 @@ class ProductController extends Controller
 
     // Di ProductController.php
     public function archive(Request $request, $id) {
-        $this->authorize('delete', Product::class);
         $product = Product::findOrFail($id);
+        $this->authorize('delete', $product);
         
         // Ambil status dari form (jual/destroy/archive)
         // Jika tidak ada, default ke 'archive'
         $statusInput = $request->status ?? 'archive';
 
-        // 1. Update kolom is_active (sesuai Blade Trash Mas Bro)
+        // 1. Update kolom is_active saja (kolom reason tidak ada di database)
         $product->update([
-            'is_active' => $statusInput,
-            'reason'    => $request->reason
+            'is_active' => $statusInput
         ]);
 
-        // 2. Catat Log (Gunakan \Auth atau Auth jika sudah di-import)
+        // 2. Catat Log dengan alasan (disimpan di log, bukan di column reason)
         \App\Models\ProductLog::create([
             'product_id'  => $product->id,
             'action'      => strtoupper($statusInput),
@@ -573,8 +731,8 @@ class ProductController extends Controller
     public function deleteImage($id){
         $image = \App\Models\ProductImage::findOrFail($id);
         
-        if (\Storage::disk('public')->exists('products/' . $image->image_path)) {
-            \Storage::disk('public')->delete('products/' . $image->image_path);
+        if (Storage::disk('public')->exists('products/' . $image->image_path)) {
+            Storage::disk('public')->delete('products/' . $image->image_path);
         }
 
         $productId = $image->product_id;
@@ -609,14 +767,14 @@ class ProductController extends Controller
 
     public function getApiData($id){
         // Ambil data 1 produk beserta relasinya
-        $product = \App\Models\Product::with(['category', 'images'])->findOrFail($id);
+        $product = \App\Models\Product::with(['category', 'images', 'supplier'])->findOrFail($id);
         return response()->json($product);
     }
     
     public function show($id){
         try {
             // Ambil produk beserta relasinya agar carousel & detail muncul
-            $product = Product::with(['category', 'division', 'heldBy', 'location', 'images'])->findOrFail($id);
+            $product = Product::with(['category', 'division', 'heldBy', 'location', 'images', 'supplier'])->findOrFail($id);
             $product->append('warranty_color');
 
             // Kirim data dalam bentuk JSON
@@ -626,5 +784,71 @@ class ProductController extends Controller
             // Jika ada error, kirim pesan errornya supaya tidak Error 500
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function downloadTemplate()
+    {
+        return Excel::download(new ProductTemplateExport, 'product_import_template.xlsx');
+    }
+
+    public function importExcel(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv'
+        ]);
+
+        try {
+            $import = new ProductImport;
+            Excel::import($import, $request->file('file'));
+            
+            $count = $import->getCount() ?? 0;
+            
+            if ($count > 0) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => "Import berhasil! {$count} produk telah ditambahkan."]);
+                }
+                return redirect()->back()->with('success', "Import berhasil! {$count} produk telah ditambahkan.");
+            }
+            
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Import gagal: File tidak memiliki data yang valid.'], 422);
+            }
+            return redirect()->back()->with('error', 'Import gagal: File tidak memiliki data yang valid.');
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            $failures = $e->failures();
+            $errors = [];
+            foreach ($failures as $failure) {
+                $errors[] = "Row {$failure->row()}: " . implode(', ', $failure->errors());
+            }
+            $errorMsg = 'Import gagal: ' . implode(' | ', $errors);
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $errorMsg], 422);
+            }
+            return redirect()->back()->with('error', $errorMsg);
+        } catch (\Exception $e) {
+            $errorMsg = 'Import gagal: ' . $e->getMessage();
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $errorMsg], 500);
+            }
+            return redirect()->back()->with('error', $errorMsg);
+        }
+    }
+
+    public function bulkPrintLabels(Request $request)
+    {
+        $request->validate([
+            'product_ids' => 'required|array|min:1',
+            'product_ids.*' => 'integer'
+        ]);
+
+        $products = Product::with(['category', 'division', 'supplier'])
+            ->whereIn('id', $request->product_ids)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return redirect()->back()->with('error', 'Pilih minimal satu produk dulu untuk dicetak!');
+        }
+
+        return view('products.bulk_print_labels', compact('products'));
     }
 }

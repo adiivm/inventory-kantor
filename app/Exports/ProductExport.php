@@ -20,7 +20,7 @@ class ProductExport implements FromCollection, WithHeadings, WithMapping
     public function collection()
     {
         // Panggil relasi agar performa tetap cepat (N+1 safe)
-        return Product::with(['category', 'division', 'location', 'heldBy'])->get();
+        return Product::with(['category', 'division', 'location', 'heldBy', 'latestAudit', 'supplier'])->get();
     }
 
     // 2. Tentukan Header Kolom Excel
@@ -29,8 +29,7 @@ class ProductExport implements FromCollection, WithHeadings, WithMapping
         $headers = [];
         foreach ($this->columns as $col) {
             // Ubah format tulisan agar rapi (contoh: purchase_date -> Purchase Date)
-            $label = str_replace('_id', '', $col); // hilangkan kata _id
-            $label = str_replace('_', ' ', $label); // ganti underscore dgn spasi
+            $label = str_replace(['_id', '_'], ['', ' '], $col);
             $headers[] = ucwords($label); 
         }
         return $headers;
@@ -50,9 +49,25 @@ class ProductExport implements FromCollection, WithHeadings, WithMapping
                 $data[] = $product->location->name ?? '-';
             } elseif ($column == 'held_by_id') {
                 $data[] = $product->heldBy->name ?? '-';
+            } elseif ($column == 'supplier_id') {
+                $data[] = $product->supplier->name ?? '-';
+            } elseif ($column == 'purchase_date') {
+                $data[] = $product->purchase_date ? \Carbon\Carbon::parse($product->purchase_date)->format('d/m/Y H:i') : '-';
+            } elseif ($column == 'warranty_expiry_date') {
+                $data[] = $product->warranty_expiry_date ? \Carbon\Carbon::parse($product->warranty_expiry_date)->format('d/m/Y H:i') : '-';
+            } elseif ($column == 'audit_date') {
+                $data[] = $product->latestAudit ? \Carbon\Carbon::parse($product->latestAudit->audit_date)->format('d/m/Y H:i') : '-';
+            } elseif ($column == 'auditor_name') {
+                $data[] = $product->latestAudit->auditor_name ?? '-';
+            } elseif ($column == 'audit_notes') {
+                $data[] = $product->latestAudit->notes ?? '-';
+            } elseif ($column == 'condition') {
+                $cond = strtolower($product->condition ?? 'ready');
+                $labels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
+                $data[] = $labels[$cond] ?? $cond;
             } else {
                 // Untuk kolom biasa (SKU, Name, Price, dll)
-                $data[] = $product->$column;
+                $data[] = $product->$column ?? '';
             }
         }
         return $data;

@@ -152,12 +152,41 @@
             #content { margin-left: 0; width: 100%; }
         }
 
-        /* Styling Mobile Card (Sesuai script lama Anda) */
+        /* Styling Mobile Card */
         @media (max-width: 768px) {
             thead { display: none; }
             tr { display: block; margin-bottom: 1.5rem; border: 1px solid #e9edf7 !important; border-radius: 15px; background: #fff; padding: 10px; }
             td { display: flex; justify-content: space-between; border: none !important; padding: 8px 5px !important; }
             td::before { content: attr(data-label); font-weight: 700; color: #a3adc2; font-size: 0.7rem; text-transform: uppercase; }
+            
+            /* Mobile tweaks */
+            .top-navbar { padding: 10px 15px !important; margin-bottom: 15px !important; }
+            .top-navbar h2 { font-size: 1rem !important; }
+            .card { padding: 15px !important; border-radius: 15px !important; }
+            .btn { padding: 8px 12px !important; font-size: 0.875rem; }
+            .form-control, .form-select { font-size: 0.875rem; padding: 8px 12px; }
+            .table { font-size: 0.875rem; }
+            .modal-dialog { margin: 10px !important; }
+            .modal-body { padding: 15px !important; }
+            h1, h2, h3, h4, h5, h6 { font-size: 1.1rem; }
+            .navbar-brand img { width: 30px !important; }
+            .dropdown-menu { width: 100% !important; }
+            .nav-link { padding: 10px 15px !important; font-size: 0.9rem; }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 576px) {
+            .card { padding: 10px !important; }
+            .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+            .form-label { font-size: 0.85rem; }
+            .badge { font-size: 0.7rem; }
+        }
+
+        /* Action buttons mobile fix */
+        .action-buttons .btn { padding: 4px 8px; min-width: 32px; }
+        @media (max-width: 576px) {
+            .action-buttons { justify-content: flex-start !important; }
+            .action-buttons .btn { padding: 3px 6px; }
         }
 
  
@@ -180,20 +209,23 @@
             </a>
             
             <a href="{{ route('product.trash') }}" class="nav-link {{ request()->is('trash*') ? 'active' : '' }}">
-                <i class="bi bi-box-seam"></i> Gudang Arc Assets
+                <i class="bi bi-archive"></i> Archive
             </a>
 
             <a href="{{ route('reports.index') }}" class="nav-link {{ request()->is('report*') ? 'active' : '' }}">
-                <i class="bi bi-file-earmark-text"></i> Laporan
+                <i class="bi bi-file-earmark-text"></i> Reports
             </a>
 
             <a href="{{ route('profile.index') }}" class="nav-link {{ request()->is('profile*') ? 'active' : '' }}">
-                <i class="bi bi-person-circle"></i> Profile Saya
+                <i class="bi bi-person-circle"></i> My Profile
             </a>
             
-            @if(Auth::check() && Auth::user()->role === 'Admin')
+            @if(Auth::check() && Auth::user()->role === 'admin')
             <a href="{{ route('users.index') }}" class="nav-link">
-                <i class="bi bi-people"></i> Manajemen User
+                <i class="bi bi-people"></i> User Management
+            </a>
+            <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->is('suppliers*') ? 'active' : '' }}">
+                <i class="bi bi-truck"></i> Suppliers
             </a>
             @endif
 
@@ -216,10 +248,51 @@
             
             <h2 class="mb-0 fw-bold d-none d-sm-block text-muted">Selamat Datang {{ Auth::user()->name }}👋</h2>
 
-            <div class="user-info d-flex align-items-center">
-                <div class="text-end me-3 d-none d-sm-block">
-                    <p class="mb-0 fw-bold" style="font-size: 0.9rem;">{{ Auth::user()->name }}</p>
-                    <small class="text-muted" style="font-size: 0.75rem;">{{ strtoupper(Auth::user()->role) }}</small>
+            <div class="user-info d-flex align-items-center gap-2">
+                <!-- Notifikasi Garansi Kritis -->
+                @if($jmlGaransiKritis > 0)
+                <div class="dropdown me-2">
+                    <a href="#" class="position-relative text-dark d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell-fill text-warning" style="font-size: 1.1rem;"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; min-width: 16px; height: 16px;">
+                            {{ $jmlGaransiKritis }}
+                        </span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 280px; max-width: 90vw; border-radius: 12px;">
+                        <div class="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                            <span class="fw-bold text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Garansi Kritis</span>
+                            <a href="{{ route('product.index', ['warranty_status' => 'critical']) }}" class="btn btn-sm btn-warning py-1 px-2" style="font-size: 0.7rem;">Lihat</a>
+                        </div>
+                        @foreach($garansiKritis as $item)
+                        @php
+                            $expiryDate = \Carbon\Carbon::parse($item->warranty_expiry_date)->startOfDay();
+                            $currentDay = now()->startOfDay();
+                            $daysDiff = $currentDay->diffInDays($expiryDate, false);
+                        @endphp
+                        <a href="{{ route('product.index', ['search_sku' => $item->sku]) }}" class="dropdown-item py-2 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block" style="font-size: 0.8rem;">{{ $item->sku }}</strong>
+                                    <span class="text-muted" style="font-size: 0.7rem;">{{ Str::limit($item->name, 15) }}</span>
+                                </div>
+                                <div class="text-end">
+                                    @if($daysDiff > 0)
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">{{ $daysDiff }} hr</span>
+                                    @elseif($daysDiff === 0)
+                                        <span class="badge bg-danger text-white" style="font-size: 0.65rem;">Habis!</span>
+                                    @else
+                                        <span class="badge bg-secondary text-white" style="font-size: 0.65rem;">+{{ abs($daysDiff) }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </a>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+                <div class="text-end me-2 d-none d-md-block">
+                    <p class="mb-0 fw-bold" style="font-size: 0.85rem;">{{ Auth::user()->name }}</p>
+                    <small class="text-muted" style="font-size: 0.7rem;">{{ strtoupper(Auth::user()->role) }}</small>
                 </div>
                 
                 <!-- Bungkus foto dengan dropdown -->
@@ -227,14 +300,14 @@
                     @if(Auth::user()->photo)
                         <img src="{{ asset('storage/photos/' . Auth::user()->photo) }}" 
                              class="rounded-circle shadow-sm dropdown-toggle" 
-                             width="45" height="45" 
+                             width="36" height="36" 
                              style="object-fit: cover; border: 2px solid var(--primary-color); cursor: pointer;" 
                              id="userDropdown" 
                              data-bs-toggle="dropdown" 
                              aria-expanded="false">
                     @else
                         <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm dropdown-toggle" 
-                             style="width: 45px; height: 45px; cursor: pointer;" 
+                             style="width: 36px; height: 36px; cursor: pointer; font-size: 0.9rem;" 
                              id="userDropdown" 
                              data-bs-toggle="dropdown" 
                              aria-expanded="false">
@@ -246,13 +319,13 @@
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" aria-labelledby="userDropdown" style="border-radius: 15px;">
                         <li>
                             <a class="dropdown-item py-2 px-3" href="{{ route('profile.index') }}">
-                                <i class="bi bi-person-circle me-2"></i> Profile Saya
+                                <i class="bi bi-person-circle me-2"></i> My Profile
                             </a>
                         </li>
-                        @if(Auth::check() && Auth::user()->role === 'Admin')
+                        @if(Auth::check() && Auth::user()->role === 'admin')
                             <li>
                                 <a class="dropdown-item py-2 px-3" href="{{ route('users.index') }}">
-                                    <i class="bi bi-people me-2"></i> Manajemen User
+                                    <i class="bi bi-people me-2"></i> User Management
                                 </a>
                             </li>
                         @endif
@@ -329,7 +402,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
                 <div class="modal-header bg-primary text-white border-0" style="border-radius: 15px 15px 0 0;">
-                    <h5 class="modal-title ps-2"><i class="bi bi-geo-alt-fill me-2"></i>Tambah Lokasi Baru</h5>
+                    <h5 class="modal-title ps-2"><i class="bi bi-geo-alt-fill me-2"></i>Add New Location</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="closeLocation"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -341,7 +414,51 @@
                 <div class="modal-footer border-0 pb-4 px-4">
                     <button type="button" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" 
                             onclick="saveLocation()" style="border-radius: 10px;">
-                        <i class="bi bi-plus-lg me-1"></i> Simpan Lokasi
+                        <i class="bi bi-plus-lg me-1"></i> Save Location
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalSupplier" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                <div class="modal-header bg-primary text-white border-0" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="modal-title ps-2"><i class="bi bi-truck me-2"></i>Add New Supplier</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="closeSupplier"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Nama Supplier</label>
+                        <input type="text" id="new_supplier_name" class="form-control form-control-lg border-2" 
+                            placeholder="Contoh: PT Sumber Jaya" style="border-radius: 10px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Contact Person</label>
+                        <input type="text" id="new_supplier_contact" class="form-control border-2" 
+                            placeholder="Nama kontak" style="border-radius: 10px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Telepon</label>
+                        <input type="text" id="new_supplier_phone" class="form-control border-2" 
+                            placeholder="Nomor telepon" style="border-radius: 10px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Email</label>
+                        <input type="email" id="new_supplier_email" class="form-control border-2" 
+                            placeholder="email@supplier.com" style="border-radius: 10px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted">Alamat</label>
+                        <textarea id="new_supplier_address" class="form-control border-2" 
+                            placeholder="Alamat lengkap" rows="2" style="border-radius: 10px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4 px-4">
+                    <button type="button" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" 
+                            onclick="saveSupplier()" style="border-radius: 10px;">
+                        <i class="bi bi-plus-lg me-1"></i> Save Supplier
                     </button>
                 </div>
             </div>
@@ -352,7 +469,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
                 <div class="modal-header bg-primary text-white border-0" style="border-radius: 15px 15px 0 0;">
-                    <h5 class="modal-title ps-2"><i class="bi bi-tag-fill me-2"></i>Tambah Kategori Baru</h5>
+                    <h5 class="modal-title ps-2"><i class="bi bi-tag-fill me-2"></i>Add New Category</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="closeKategori"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -394,10 +511,14 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Server IP untuk QR Code - gunakan IP server yang bisa diakses dari HP
+        const serverHost = "{{ config('app.url', 'http://172.17.7.70:8080') }}".replace(/https?:\/\//, '');
+    </script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
     <script>
@@ -470,16 +591,16 @@
 
         /** --- PRINTING LOGIC --- **/
         function printLabel(sku, name) {
-            const auditLink = `http://172.17.7.74/audit/direct/${sku}`;
-            const printWindow = window.open('', '_blank', 'width=400,height=300');
+            const auditLink = `http://${serverHost}/audit/direct/${sku}`;
+            const printWindow = window.open('', '_blank', 'width=500,height=400');
             
             printWindow.document.write(`
                 <html>
                     <head>
                         <style>
-                            /* --- 1. SETTING UKURAN KERTAS 50x15 --- */
+                            /* --- 1. SETTING UKURAN KERTAS (LEBIH BESAR) --- */
                             @page {
-                                size: 50mm 15mm; 
+                                size: 70mm 35mm; 
                                 margin: 0;
                             }
 
@@ -487,20 +608,20 @@
                             body { 
                                 font-family: 'Inter', sans-serif, Arial; 
                                 margin: 0; 
-                                padding: 1mm 2mm; /* Margin tipis biar nggak mepet ujung */
+                                padding: 2mm 3mm;
                                 background-color: #fff;
                                 color: #000;
                                 display: flex;
-                                flex-direction: row; /* Berjejer ke samping */
+                                flex-direction: row;
                                 align-items: center;
-                                height: 15mm;
-                                width: 50mm;
+                                height: 35mm;
+                                width: 70mm;
                                 box-sizing: border-box;
                             }
 
                             /* --- 3. WADAH QR CODE & TEKS --- */
                             #qrcode { 
-                                margin-right: 3mm; /* Jarak antara QR Code dan Teks */
+                                margin-right: 4mm;
                                 flex-shrink: 0;
                             }
                             
@@ -512,18 +633,18 @@
                                 width: 100%;
                             }
 
-                            /* --- 4. UKURAN FONT SUPER KECIL --- */
+                            /* --- 4. UKURAN FONT (LEBIH BESAR) --- */
                             p.sku { 
-                                font-size: 10px; 
-                                margin: 0 0 1px 0; 
+                                font-size: 14px; 
+                                margin: 0 0 2px 0; 
                             }
 
                             h3.name { 
-                                font-size: 8px; /* Dikecilkan maksimal agar muat */
+                                font-size: 12px;
                                 margin: 0; 
                                 white-space: nowrap; 
                                 overflow: hidden; 
-                                text-overflow: ellipsis; /* Kalau nama panjang, jadi titik-titik (...) */
+                                text-overflow: ellipsis;
                                 font-weight: normal;
                             }
                         </style>
@@ -538,11 +659,11 @@
                         
                         <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
                         <script>
-                            // --- 5. QR CODE DIKECILKAN UNTUK TINGGI 15MM ---
+                            // --- 5. QR CODE LEBIH BESAR UNTUK 35MM ---
                             new QRCode(document.getElementById("qrcode"), { 
                                 text: "${auditLink}", 
-                                width: 45,  // Pixel disesuaikan agar muat di 15mm
-                                height: 45 
+                                width: 80,  // Diperbesar untuk label 35mm
+                                height: 80 
                             });
                             
                             setTimeout(() => { 
@@ -604,6 +725,52 @@
         const saveDivisions = () => handleAjaxSave('/api/divisions', 'new_division_name', 'division_select', 'closeDivisi', 'Divisi');
         const saveHeld_by = () => handleAjaxSave('/api/held_bies', 'new_held_by_name', 'held_by_select', 'closeHeld_by', 'Pemegang');
         const saveLocation = () => handleAjaxSave('/api/locations', 'new_location_name', 'location_select', 'closeLocation', 'Lokasi');
+
+        const saveSupplier = () => {
+            const name = document.getElementById('new_supplier_name').value.trim();
+            if(!name) return Swal.fire('Oops!', 'Nama Supplier tidak boleh kosong.', 'warning');
+
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('contact_person', document.getElementById('new_supplier_contact').value.trim());
+            formData.append('phone', document.getElementById('new_supplier_phone').value.trim());
+            formData.append('email', document.getElementById('new_supplier_email').value.trim());
+            formData.append('address', document.getElementById('new_supplier_address').value.trim());
+            formData.append('_token', csrfToken);
+
+            fetch('/suppliers', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('closeSupplier').click();
+                    Toast.fire({ icon: 'success', title: 'Supplier berhasil ditambahkan' });
+                    
+                    // Add to dropdown and select
+                    const select = document.getElementById('supplier_select');
+                    if(select) {
+                        const option = document.createElement('option');
+                        option.value = data.data.id;
+                        option.text = data.data.name;
+                        option.selected = true;
+                        select.add(option);
+                    }
+                    
+                    // Reset form fields
+                    document.getElementById('new_supplier_name').value = '';
+                    document.getElementById('new_supplier_contact').value = '';
+                    document.getElementById('new_supplier_phone').value = '';
+                    document.getElementById('new_supplier_email').value = '';
+                    document.getElementById('new_supplier_address').value = '';
+                }
+            })
+            .catch(e => {
+                const errorMsg = e.response?.data?.message || e.message || 'Terjadi kesalahan';
+                Swal.fire('Error', errorMsg, 'error');
+            });
+        };
 
         // Fungsi untuk membuka Modal Gambar di Tabel
         function showPreview(id) {
@@ -682,37 +849,17 @@
         });
     </script>
     <script>
-        document.addEventListener('input', function (e) {
-            // Pastikan ini hanya berjalan jika yang diinput adalah field stok
-            const stokFields = ['stock_ready', 'stock_repair', 'stock_broken'];
-            if (stokFields.includes(e.target.name)) {
-                
-                const form = e.target.closest('form');
-                
-                // Ambil value, pastikan jadi angka (default 0)
-                const ready  = parseInt(form.querySelector('[name="stock_ready"]').value) || 0;
-                const repair = parseInt(form.querySelector('[name="stock_repair"]').value) || 0;
-                const broken = parseInt(form.querySelector('[name="stock_broken"]').value) || 0;
-                
-                const total = ready + repair + broken;
-                
-                // Update field Total Stok
-                const totalInput = form.querySelector('[name="stock"]');
-                if (totalInput) {
-                    totalInput.value = total;
-                }
-            }
-        });
+        // Stock is now always 1, condition is selected via radio buttons
     </script>
     <script>
-        // 1. Fungsi Ganti Foto Utama (Bintang) dengan SweetAlert
+        // 1. Fungsi Ganti Foto Utama (Bintang) - SUDAH OKE
         function setPrimary(imageId) {
             Swal.fire({
                 title: 'Jadikan Utama?',
                 text: "Foto ini akan muncul sebagai sampul produk.",
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#f39c12', // Warna kuning bintang
+                confirmButtonColor: '#f39c12',
                 cancelButtonColor: '#d33',
                 confirmButtonText: 'Ya, Jadikan Utama!',
                 cancelButtonText: 'Batal'
@@ -723,15 +870,8 @@
                         type: "POST",
                         data: { _token: "{{ csrf_token() }}" },
                         success: function(response) {
-                            Swal.fire({
-                                title: 'Berhasil!',
-                                text: response.success,
-                                icon: 'success',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => {
-                                location.reload();
-                            });
+                            Toast.fire({ icon: 'success', title: 'Foto utama diperbarui' });
+                            setTimeout(() => { location.reload(); }, 1000);
                         },
                         error: function() {
                             Swal.fire('Gagal!', 'Terjadi kesalahan sistem.', 'error');
@@ -741,33 +881,30 @@
             });
         }
 
-        // 2. Fungsi Hapus Foto dengan SweetAlert
+        // 2. Fungsi Hapus Foto (Satu Fungsi untuk Semua)
         function confirmDeleteImage(imageId) {
             Swal.fire({
                 title: 'Yakin mau hapus?',
-                text: "Foto yang dihapus tidak bisa dikembalikan loh!",
+                text: "Foto yang dihapus tidak bisa dikembalikan!",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#dd4b39', // Warna merah danger
+                confirmButtonColor: '#dd4b39',
                 cancelButtonColor: '#3085d6',
                 confirmButtonText: 'Ya, Hapus Saja!',
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
-                        url: "{{ url('/product/image-delete') }}/" + imageId,
+                        // PASTIKAN URL INI SAMA DENGAN ROUTE DI WEB.PHP
+                        url: "{{ url('/product/image-delete') }}/" + imageId, 
                         type: "DELETE",
                         data: { _token: "{{ csrf_token() }}" },
                         success: function(response) {
-                            Swal.fire({
-                                title: 'Terhapus!',
-                                text: response.success,
-                                icon: 'success',
-                                timer: 1000,
-                                showConfirmButton: false
-                            });
-                            // Efek menghilang halus
-                            $(`.group-image-${imageId}`).fadeOut(500);
+                            Toast.fire({ icon: 'success', title: 'Foto terhapus' });
+                            
+                            // Menghapus elemen dari UI (Gunakan ID yang sesuai di HTML-mu)
+                            $(`.group-image-${imageId}`).fadeOut(500); 
+                            $(`#old-image-${imageId}`).fadeOut(500);
                         },
                         error: function() {
                             Swal.fire('Gagal!', 'Gagal menghapus foto.', 'error');
@@ -776,83 +913,66 @@
                 }
             });
         }
-    </script>
-    <script>
-    let fileCount = 0;
 
-    function triggerUpload() {
-        // Membuat input file dinamis setiap kali tombol diklik
-        fileCount++;
-        const inputId = `file-input-${fileCount}`;
-        
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.name = 'images[]'; // Nama array untuk ditarik di Controller
-        input.id = inputId;
-        input.accept = 'image/*';
-        input.multiple = true;
-        input.style.display = 'none';
+        // 3. Logic Upload & Preview (Tetap Biarkan)
+        let fileCount = 0;
+        function triggerUpload() {
+            fileCount++;
+            const inputId = `file-input-${fileCount}`;
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.name = 'images[]';
+            input.id = inputId;
+            input.accept = 'image/*';
+            input.multiple = true;
+            input.style.display = 'none';
 
-        // Saat user memilih file
-        input.onchange = function(e) {
-            const files = e.target.files;
-            if (files.length > 0) {
-                // Pindahkan input ke div tersembunyi agar ikut terkirim saat form submit
-                document.getElementById('gallery-inputs').appendChild(input);
-                
-                // Generate Preview
-                Array.from(files).forEach((file, index) => {
-                    const reader = new FileReader();
-                    const previewId = `prev-${fileCount}-${index}`;
-                    
-                    reader.onload = function(e) {
-                        const html = `
-                            <div class="col-md-3 position-relative" id="${previewId}">
-                                <img src="${e.target.result}" class="img-thumbnail w-100" style="height: 120px; object-fit: cover;">
-                                <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1" 
-                                    onclick="removeNewPreview('${previewId}', '${inputId}')">✕</button>
-                                <small class="badge bg-success position-absolute bottom-0 start-0 m-1">Baru</small>
-                            </div>
-                        `;
-                        document.getElementById('gallery-preview').insertAdjacentHTML('beforeend', html);
-                    };
-                    reader.readAsDataURL(file);
-                });
-            }
-        };
-
-        input.click();
-    }
-
-    // Fungsi menghapus preview foto yang BARU akan diupload
-    function removeNewPreview(previewId, inputId) {
-        document.getElementById(previewId).remove();
-        // Opsional: Jika semua preview dari satu input dihapus, hapus inputnya
-        // Tapi untuk simpelnya, biarkan saja karena jika input kosong tidak akan mengganggu backend
-    }
-
-    // Fungsi untuk foto LAMA (AJAX)
-    function confirmDeleteImage(id) {
-        if (confirm('Hapus foto ini secara permanen?')) {
-            $.ajax({
-                url: `/product/image/${id}/delete`, // Sesuaikan dengan route delete Mas Bro
-                type: 'DELETE',
-                data: { _token: '{{ csrf_token() }}' },
-                success: function(res) {
-                    if(res.success) {
-                        $(`#old-image-${id}`).fadeOut();
-                    }
+            input.onchange = function(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    document.getElementById('gallery-inputs').appendChild(input);
+                    Array.from(files).forEach((file, index) => {
+                        const reader = new FileReader();
+                        const previewId = `prev-${fileCount}-${index}`;
+                        reader.onload = function(e) {
+                            const html = `
+                                <div class="col-md-3 position-relative mb-3" id="${previewId}">
+                                    <img src="${e.target.result}" class="img-thumbnail w-100" style="height: 120px; object-fit: cover; border-radius:10px;">
+                                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1" 
+                                        onclick="removeNewPreview('${previewId}', '${inputId}')">✕</button>
+                                    <small class="badge bg-success position-absolute bottom-0 start-0 m-1">Baru</small>
+                                </div>`;
+                            document.getElementById('gallery-preview').insertAdjacentHTML('beforeend', html);
+                        };
+                        reader.readAsDataURL(file);
+                    });
                 }
-            });
+            };
+            input.click();
         }
-    }
 
-    // Setup global untuk JQuery (agar AJAX $.ajax juga aman)
-    $.ajaxSetup({
-        headers: {
-            'X-CSRF-TOKEN': csrfToken
+        function removeNewPreview(previewId, inputId) {
+            $(`#${previewId}`).remove();
         }
-    });
+
+        function getConditionBadge(cond) {
+            cond = (cond || 'ready').toLowerCase();
+            const badges = {
+                'ready': '<span class="badge bg-success fs-6">Ready</span>',
+                'repair': '<span class="badge bg-warning text-dark fs-6">Servis</span>',
+                'broken': '<span class="badge bg-danger fs-6">Rusak</span>',
+                'disposed': '<span class="badge bg-secondary fs-6">Dibuang</span>'
+            };
+            return badges[cond] || badges['ready'];
+        }
+
+
+        // Setup global untuk JQuery (agar AJAX $.ajax juga aman)
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            }
+        });
     </script>
 
 

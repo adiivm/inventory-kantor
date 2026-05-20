@@ -1,5 +1,69 @@
 @extends('layouts.app') 
 
+@push('styles')
+<style>
+    @media (max-width: 768px) {
+        /* Memperbaiki jarak antar baris aset */
+        #tableProduct tbody tr {
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            padding: 15px;
+        }
+
+        /* Mengatur gambar agar tidak aneh posisinya */
+        #tableProduct td:nth-child(3) {
+            justify-content: flex-end;
+        }
+        #tableProduct td:nth-child(3) img {
+            width: 60px !important;
+            height: auto !important;
+            border-radius: 8px;
+        }
+
+        /* Merapikan Tombol Aksi agar berbaris menyamping, bukan memanjang ke bawah */
+        #tableProduct td:last-child {
+            display: flex !important;
+            justify-content: flex-end !important;
+            gap: 5px;
+            padding-top: 15px !important;
+            border-top: 1px dashed #e9edf7 !important;
+            margin-top: 10px;
+        }
+        
+        /* Hilangkan text label "AKSI" bawaan CSS utama agar tombol punya ruang penuh */
+        #tableProduct td:last-child::before {
+            display: none; 
+        }
+
+        /* Memastikan form/tombol di dalam aksi menggunakan flexbox menyamping */
+        .action-buttons {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 5px;
+            justify-content: flex-start;
+            width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .action-buttons {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+        }
+        
+        /* Ukuran tombol lebih proporsional di HP */
+        .action-buttons .btn {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container">
     <div class="row">
@@ -7,13 +71,29 @@
             <div class="card p-4 border-0 shadow-sm">
                 <div class="row mb-4">
                     <div class="col-12">
-                        <h1 class="fw-bold text-primary text-center text-md-start display-4" style="letter-spacing: -2px;">
-                            Daftar Assets
-                        </h1>
+                        <h2 class="fw-bold text-dark">
+                            <i class="bi bi-box-seam-fill me-2"></i>Assets
+                        </h2>
+                        <p class="text-muted mb-0">Manage and track all company inventory assets</p>
                     </div>
                 </div>
 
                 <div class="row g-2 mb-4">
+                    <div class="col-12 col-md-auto">
+                        <a href="{{ route('product.import_template') }}" class="btn btn-outline-success w-100 fw-bold px-md-3">
+                            <i class="bi bi-download me-2"></i> Download Template
+                        </a>
+                    </div>
+                    <div class="col-12 col-md-auto">
+                        <button class="btn btn-outline-primary w-100 fw-bold px-md-3" data-bs-toggle="modal" data-bs-target="#modalImport">
+                            <i class="bi bi-upload me-2"></i> Import Excel
+                        </button>
+                    </div>
+                    <div class="col-12 col-md-auto">
+                        <button class="btn btn-success w-100 fw-bold px-md-3" onclick="bulkPrintLabels()" id="btnBulkPrint" disabled>
+                            <i class="bi bi-printer me-2"></i> Print Selected (<span id="selectedCount">0</span>)
+                        </button>
+                    </div>
                     <div class="col-12 col-md-auto ms-md-auto">
                         <a href="/product/create" class="btn btn-primary w-100 fw-bold px-md-5">
                             + Tambah Barang
@@ -25,11 +105,13 @@
                     <table class="table table-hover align-middle" id="tableProduct" style="width:100%">
                         <thead class="table-light">
                             <tr>
+                                <th width="5%"><input type="checkbox" id="selectAll"></th>
                                 <th width="10%">SKU</th>
-                                <th width="25%">NAMA ASSETS</th>
+                                <th width="20%">NAMA ASSETS</th>
                                 <th width="10%">IMAGE</th>
                                 <th width="10%">KATEGORI</th>
                                 <th width="10%">DIVISI</th>
+                                <th width="10%">SUPPLIER</th>
                                 <th width="10%">KONDISI</th>
                                 <th width="15%">PEMEGANG (POSISI)</th>
                                 <th width="10%">AKSI</th>
@@ -131,16 +213,57 @@
     </div>
 </div>
 
+<!-- Modal Import Excel -->
+<div class="modal fade" id="modalImport" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Import Data dari Excel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formImport" action="{{ route('product.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Unduh template terlebih dahulu, isi data sesuai format, lalu upload file tersebut.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pilih File Excel (.xlsx, .xls, .csv)</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-upload me-1"></i> Import Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @if(session('success'))
     <script>
         Swal.fire({
             icon: 'success',
-            title: 'Mantap!',
+            title: 'Berhasil!',
             text: "{{ session('success') }}",
             showConfirmButton: false,
-            timer: 2000
+            timer: 4000
+        });
+    </script>
+@endif
+
+@if(session('error'))
+    <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal!',
+            text: "{{ session('error') }}",
+            showConfirmButton: true,
+            timer: 5000
         });
     </script>
 @endif
@@ -148,17 +271,78 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
+        // AJAX Import Excel
+        $('#formImport').on('submit', function(e) {
+            e.preventDefault();
+            
+            let formData = new FormData(this);
+
+            $.ajax({
+                url: "{{ route('product.import') }}",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                beforeSend: function() {
+                    $('#formImport').find('button[type="submit"]').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Meng-import...');
+                },
+                success: function(response) {
+                    $('#modalImport').modal('hide');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: response.message || 'Import berhasil!',
+                        showConfirmButton: false,
+                        timer: 4000
+                    }).then(() => {
+                        window.location.href = "{{ route('product.index') }}";
+                    });
+                },
+                error: function(xhr) {
+                    let errorMessage = 'Terjadi kesalahan saat import.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal!',
+                        text: errorMessage,
+                        showConfirmButton: true
+                    });
+                },
+                complete: function() {
+                    $('#formImport').find('button[type="submit"]').prop('disabled', false).html('<i class="bi bi-upload me-1"></i> Import Data');
+                }
+            });
+        });
+
         // 1. Inisialisasi DataTable
         var table = $('#tableProduct').DataTable({
             processing: true,
             serverSide: true,
-            ajax: "{{ route('product.index') }}",
+            ajax: {
+                url: "{{ route('product.index') }}",
+                data: function(d) {
+                    let urlParams = new URLSearchParams(window.location.search);
+                    d.warranty_status = urlParams.get('warranty_status');
+                    d.condition = urlParams.get('condition') || $('#filter_condition').val();
+                    d.search_sku = urlParams.get('search_sku');
+                    d.category_id = $('#filter_category').val();
+                    d.division_id = $('#filter_division').val();
+                    d.held_by_id = $('#filter_held_by').val();
+                }
+            },
             columns: [
+                { data: 'checkbox', name: 'id', orderable: false, searchable: false },
                 { data: 'sku_custom', name: 'sku' },
                 { data: 'asset_info', name: 'name' },
                 { data: 'image_thumb', name: 'id', orderable: false },
                 { data: 'category.name', name: 'category.name', defaultContent: '-' },
                 { data: 'division.name', name: 'division.name', defaultContent: '-' },
+                { data: 'supplier_name', name: 'supplier.name', defaultContent: '-' },
                 
                 // --- PASTIKAN BARIS INI MENGGUNAKAN condition_badge ---
                 { data: 'condition_badge', name: 'condition' }, 
@@ -166,6 +350,23 @@
                 { data: 'holder_info', name: 'heldBy.name', defaultContent: '-' },
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ],
+            // --- TAMBAHKAN BAGIAN INI UNTUK TAMPILAN MOBILE ---
+            createdRow: function(row, data, dataIndex) {
+                $(row).find('td:eq(0)').attr('data-label', 'SKU');
+                $(row).find('td:eq(1)').attr('data-label', 'NAMA ASSETS');
+                $(row).find('td:eq(2)').attr('data-label', 'IMAGE');
+                $(row).find('td:eq(3)').attr('data-label', 'KATEGORI');
+                $(row).find('td:eq(4)').attr('data-label', 'DIVISI');
+                $(row).find('td:eq(5)').attr('data-label', 'SUPPLIER');
+                $(row).find('td:eq(6)').attr('data-label', 'KONDISI');
+                $(row).find('td:eq(7)').attr('data-label', 'PEMEGANG');
+                $(row).find('td:eq(8)').attr('data-label', 'AKSI');
+                
+                // Bungkus tombol aksi dengan div class action-buttons agar mudah di-styling di HP
+                let actionHtml = $(row).find('td:eq(8)').html();
+                $(row).find('td:eq(8)').html('<div class="action-buttons">' + actionHtml + '</div>');
+            },
+            // ---------------------------------------------------
             // Styling tambahan agar mirip gambar
             language: {
                 search: "",
@@ -287,17 +488,16 @@
 
                         <div class="card bg-light border-0 mb-3 shadow-sm">
                             <div class="card-body p-2">
-                                <small class="text-muted d-block fw-bold mb-2">Rincian Stok (Total: ${data.stock})</small>
-                                <div class="d-flex justify-content-between text-center" style="font-size: 0.85rem;">
-                                    <div><span class="text-success fw-bold fs-5">${data.stock_ready || 0}</span><br>Ready</div>
-                                    <div><span class="text-warning text-dark fw-bold fs-5">${data.stock_repair || 0}</span><br>Servis</div>
-                                    <div><span class="text-danger fw-bold fs-5">${data.stock_broken || 0}</span><br>Rusak</div>
+                                <small class="text-muted d-block fw-bold mb-2">Kondisi</small>
+                                <div class="d-flex justify-content-center">
+                                    ${getConditionBadge(data.condition)}
                                 </div>
                             </div>
                         </div>
 
                         <table class="table table-sm table-borderless" style="font-size: 0.95rem;">
-                            <tr><td width="40%" class="text-muted">Harga Beli</td><td class="fw-bold text-success">: ${harga}</td></tr>
+                            <tr><td width="40%" class="text-muted">Supplier</td><td class="fw-bold">: ${data.supplier?.name || '-'}</td></tr>
+                            <tr><td class="text-muted">Harga Beli</td><td class="fw-bold text-success">: ${harga}</td></tr>
                             <tr><td class="text-muted">Tanggal Beli</td><td>: ${tglBeli}</td></tr>
                             <tr><td class="text-muted">Masa Garansi</td><td class="fw-bold text-${warnaBadge === 'warning text-dark' ? 'warning' : warnaBadge}">: ${tglGaransi}</td></tr>
                             <tr><td class="text-muted">Tipe Penggunaan</td><td>: ${data.usage_type || '-'}</td></tr>
@@ -347,14 +547,20 @@
                         <tr>
                             <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Pemegang</td>
                             <td style="padding: 5px; border: 1px solid #ddd;">${namaPemegang}</td>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Supplier</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${data.supplier?.name || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Tanggal Beli</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${tglBeli}</td>
                             <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Harga Beli</td>
                             <td style="padding: 5px; border: 1px solid #ddd;">${harga}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Tanggal Beli | Masa Garansi</td>
-                            <td style="padding: 5px; border: 1px solid #ddd;">${tglBeli} | ${tglGaransi}</td>
-                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Status Stok</td>
-                            <td style="padding: 5px; border: 1px solid #ddd;">Ready: ${data.stock_ready} | Servis: ${data.stock_repair} | Rusak: ${data.stock_broken}</td>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Masa Garansi</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${tglGaransi}</td>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Kondisi</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${getConditionBadge(data.condition)}</td>
                         </tr>
                     </table>
 
@@ -465,6 +671,59 @@
                 form.submit();
             }
         });
+    }
+
+    // Bulk Print Labels
+    let selectedProducts = [];
+
+    $('#selectAll').change(function() {
+        $('.product-checkbox').prop('checked', $(this).prop('checked'));
+        updateSelectedProducts();
+    });
+
+    function updateSelectedProducts() {
+        selectedProducts = [];
+        $('.product-checkbox:checked').each(function() {
+            selectedProducts.push($(this).val());
+        });
+        $('#selectedCount').text(selectedProducts.length);
+        $('#btnBulkPrint').prop('disabled', selectedProducts.length === 0);
+    }
+
+    $(document).on('change', '.product-checkbox', function() {
+        updateSelectedProducts();
+        const allChecked = $('.product-checkbox').length === $('.product-checkbox:checked').length;
+        $('#selectAll').prop('checked', allChecked);
+    });
+
+    function bulkPrintLabels() {
+        if (selectedProducts.length === 0) {
+            Swal.fire('Peringatan', 'Pilih minimal satu produk terlebih dahulu!', 'warning');
+            return;
+        }
+
+        let form = document.createElement('form');
+        form.action = '{{ route("product.bulk_print_labels") }}';
+        form.method = 'POST';
+        form.target = '_blank';
+
+        let csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = '{{ csrf_token() }}';
+        form.appendChild(csrfInput);
+
+        selectedProducts.forEach(function(id) {
+            let idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'product_ids[]';
+            idInput.value = id;
+            form.appendChild(idInput);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
     }
 
     function printModal() {

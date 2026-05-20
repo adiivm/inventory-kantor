@@ -1,6 +1,6 @@
 @extends('layouts.app') @section('content')
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Export Laporan Aset (Custom Excel)</h1>
+    <h2 class="fw-bold text-dark mb-4"><i class="bi bi-file-earmark-text me-2"></i>Export Assets Report</h2>
 
     @if(session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
@@ -21,15 +21,18 @@
                             'name' => 'Nama Barang',
                             'category_id' => 'Kategori',
                             'division_id' => 'Divisi',
-                            'location_id' => 'Lokasi',
+                            'location_id' => 'Lokasi',                            
                             'held_by_id' => 'Dipegang Oleh',
                             'price' => 'Harga',
-                            'stock' => 'Total Stok',
-                            'stock_ready' => 'Stok Ready',
-                            'stock_repair' => 'Stok Repair',
-                            'stock_broken' => 'Stok Rusak',
+                            'stock' => 'Stok',
+                            'condition' => 'Kondisi',
+                            'supplier_id' => 'Supplier',
                             'purchase_date' => 'Tanggal Beli',
-                            'warranty_expiry_date' => 'Masa Garansi'
+                            'warranty_expiry_date' => 'Masa Garansi',
+                            // Kolom Audit
+                            'audit_date' => 'Tanggal Audit Terakhir',
+                            'auditor_name' => 'Auditor Terakhir',
+                            'audit_notes' => 'Catatan Audit Terakhir'
                         ];
                     @endphp
 

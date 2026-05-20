@@ -42,9 +42,14 @@
             <tr><th class="bg-light">Harga Beli</th><td>: Rp {{ number_format($product->price, 0, ',', '.') }}</td></tr>
             <tr><th class="bg-light">Tgl Pembelian</th><td>: {{ date('d F Y', strtotime($product->purchase_date)) }}</td></tr>
             <tr><td colspan="2"><hr></td></tr>
-            <tr><th class="bg-light">Kondisi Ready</th><td>: <span class="badge bg-success">{{ $product->stock_ready }}</span></td></tr>
-            <tr><th class="bg-light">Kondisi Servis</th><td>: <span class="badge bg-warning">{{ $product->stock_repair }}</span></td></tr>
-            <tr><th class="bg-light">Kondisi Rusak</th><td>: <span class="badge bg-danger">{{ $product->stock_broken }}</span></td></tr>
+            <tr><th class="bg-light">Kondisi</th><td>: 
+                @php
+                    $cond = strtolower($product->condition ?? 'ready');
+                    $badgeClass = $cond == 'ready' ? 'bg-success' : ($cond == 'repair' ? 'bg-warning text-dark' : ($cond == 'broken' ? 'bg-danger' : 'bg-secondary'));
+                    $condLabel = $cond == 'ready' ? 'Ready' : ($cond == 'repair' ? 'Servis' : ($cond == 'broken' ? 'Rusak' : 'Dibuang'));
+                @endphp
+                <span class="badge {{ $badgeClass }}">{{ $condLabel }}</span>
+            </td></tr>
             <tr><td colspan="2"><hr></td></tr>
             <tr><th class="bg-light">Pemegang</th><td>: {{ $product->held_by->name ?? '-' }}</td></tr>
             <tr><th class="bg-light">Lokasi</th><td>: {{ $product->location->name ?? '-' }}</td></tr>

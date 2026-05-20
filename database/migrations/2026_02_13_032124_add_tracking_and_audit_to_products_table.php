@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('products', function (Blueprint $table) {
             // Kolom Tracking
-            $table->enum('usage_type', ['individual', 'shared', 'consumable'])->default('individual')->after('location');
+            $table->enum('usage_type', ['individual', 'shared', 'consumable'])->default('individual');
             
             // Kolom Opname (Kapan terakhir discan)
             $table->timestamp('last_audited_at')->nullable()->after('usage_type');

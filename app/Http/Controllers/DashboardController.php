@@ -25,20 +25,28 @@ class DashboardController extends Controller
             ->count();
 
         // 3. Total UNIT yang SIAP PAKAI (Ready)
-        $barangReady = Product::where('is_active', 'active')->sum('stock_ready');
+        $barangReady = Product::where('is_active', 'active')->where('condition', 'ready')->count();
 
         // 4. Total UNIT yang SEDANG SERVIS (Repair)
-        $barangServis = Product::where('is_active', 'active')->sum('stock_repair');
+        $barangServis = Product::where('is_active', 'active')->where('condition', 'repair')->count();
         
         // 5. Total UNIT yang RUSAK (Broken)
-        $barangRusak = Product::where('is_active', 'active')->sum('stock_broken');
+        $barangRusak = Product::where('is_active', 'active')->where('condition', 'broken')->count();
         
         // 6. Menghitung barang yang benar-benar HABIS (Total stoknya 0)
         $stokHabis = Product::where('is_active', 'active')
             ->where('stock', '<=', 0)
             ->count();
 
-        // 7. Data Grafik (Hanya barang aktif)
+        // 7. Total asset yang di-ARCHIVE (Disposed)
+        $barangArchive = Product::where('is_active', 'archive')->sum('stock');
+
+        // 8. Total NILAI ASSET (Harga x Stok untuk semua barang aktif)
+        $totalNilaiAsset = Product::where('is_active', 'active')
+            ->selectRaw('SUM(price * stock) as total')
+            ->value('total') ?? 0;
+
+        // 9. Data Grafik (Hanya barang aktif)
         $chartData = \App\Models\Category::withCount(['products' => function($query) {
             $query->where('is_active', 'active');
         }])->get();
@@ -46,9 +54,21 @@ class DashboardController extends Controller
         $labels = $chartData->pluck('name'); 
         $data   = $chartData->pluck('products_count'); 
 
+        // 10. Garansi Kritis (<= 30 hari)
+        $garansiKritis = Product::where('is_active', 'active')
+            ->where('warranty_expiry_date', '>=', now())
+            ->where('warranty_expiry_date', '<=', now()->addDays(30))
+            ->count();
+
+        // 11. Garansi Expired
+        $garansiExpired = Product::where('is_active', 'active')
+            ->where('warranty_expiry_date', '<', now())
+            ->count();
+
         return view('dashboard', compact(
             'totalBarang', 'totalUser', 'stokMenipis', 'barangReady', 
-            'barangServis', 'barangRusak', 'stokHabis', 'labels', 'data'
+            'barangServis', 'barangRusak', 'stokHabis', 'barangArchive', 
+            'totalNilaiAsset', 'labels', 'data', 'garansiKritis', 'garansiExpired'
         ));
     }
 }

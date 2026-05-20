@@ -13,7 +13,7 @@ class UserController extends Controller
     public function index()
     {
         // Proteksi: Cuma Admin yang boleh liat daftar user
-        if (Auth::user()->role !== 'Admin') {
+        if (Auth::user()->role !== 'admin') {
             abort(403, 'Akses Ditolak! Anda bukan Admin.');
         }
 

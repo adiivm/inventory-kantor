@@ -1,6 +1,6 @@
         @extends('layouts.app') @section('content')
         <div class="container">
-            <h2>Manajemen User</h2>
+            <h2 class="fw-bold text-dark mb-4"><i class="bi bi-people me-2"></i>User Management</h2>
             
             <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalUser">
                 + Tambah User Baru

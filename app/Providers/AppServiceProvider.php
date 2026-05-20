@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Gate; // Import di bagian paling atas file
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\View;
 use App\Models\User;
+use App\Models\Product;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,6 +31,24 @@ class AppServiceProvider extends ServiceProvider
         // Aturan 2: Staff hanya boleh melihat dan menambah (opsional)
         Gate::define('staff-access', function (User $user) {
             return $user->role === 'admin' || $user->role === 'staff';
+        });
+
+        // View Composer untuk data garansi kritis (Navbar)
+        View::composer('layouts.app', function ($view) {
+            $garansiKritis = Product::where('is_active', 'active')
+                ->where('warranty_expiry_date', '>=', now())
+                ->where('warranty_expiry_date', '<=', now()->addDays(30))
+                ->orderBy('warranty_expiry_date', 'asc')
+                ->limit(5)
+                ->get();
+
+            $jmlGaransiKritis = Product::where('is_active', 'active')
+                ->where('warranty_expiry_date', '>=', now())
+                ->where('warranty_expiry_date', '<=', now()->addDays(30))
+                ->count();
+
+            $view->with('garansiKritis', $garansiKritis)
+                 ->with('jmlGaransiKritis', $jmlGaransiKritis);
         });
     }
 }

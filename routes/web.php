@@ -11,9 +11,13 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuditController;
-use App\Models\Held_by;
+use App\Http\Controllers\SupplierController;
+use App\Models\HeldBy;
 use App\Models\Location;
 
+Route::get('/', function () {
+    return redirect('/login');
+});
 // Jalur yang bisa diakses tanpa login
 Route::get('/login', [LoginController::class, 'index'])->name('login');
 Route::post('/login', [LoginController::class, 'login_proses']);
@@ -38,6 +42,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/product/trash', [ProductController::class, 'trash'])->name('product.trash');
     Route::get('/product/create', [ProductController::class, 'create'])->name('product.create');
     Route::get('/product/pdf', [ProductController::class, 'exportPdf'])->name('product.pdf');
+    Route::get('/product/import-template', [ProductController::class, 'downloadTemplate'])->name('product.import_template');
+    Route::post('/product/import', [ProductController::class, 'importExcel'])->name('product.import');
+    Route::post('/product/bulk-print-labels', [ProductController::class, 'bulkPrintLabels'])->name('product.bulk_print_labels');
     Route::get('/reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
     Route::post('/reports/export-excel', [\App\Http\Controllers\ReportController::class, 'exportExcel'])->name('reports.export_excel');
     Route::post('/product/store', [ProductController::class, 'store'])->name('product.store');
@@ -64,8 +71,6 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/update/{id}', [UserController::class, 'update'])->name('users.update');
     // Hapus user
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
-    // Opsional: Jika butuh halaman edit terpisah (tapi di blade mas bro sudah pakai modal)
-    Route::get('/users/edit/{id}', [UserController::class, 'edit'])->name('users.edit');
 
 
     /** --- API & DROP-DOWN OTOMATIS --- **/
@@ -75,7 +80,7 @@ Route::middleware('auth')->group(function () {
     // Route untuk simpan Pemegang Baru via AJAX
     Route::post('/api/held_bies', function (Request $request) {
         $request->validate(['name' => 'required|unique:held_bies,name'], ['name.unique' => 'Nama pemegang ini sudah ada!']);
-        $data = Held_by::create(['name' => $request->name]);
+        $data = HeldBy::create(['name' => $request->name]);
         return response()->json($data);
     });
 
@@ -91,5 +96,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
     Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+
+    /** --- SUPPLIER MANAGEMENT --- **/
+    Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+    Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+    Route::get('/suppliers/{id}/edit', [SupplierController::class, 'edit']);
+    Route::put('/suppliers/{id}', [SupplierController::class, 'update'])->name('suppliers.update');
+    Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
+    Route::get('/api/suppliers', [SupplierController::class, 'getAll']);
+    Route::post('/api/suppliers', [SupplierController::class, 'store']);
 
 });

@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: inventory-postgres
+    environment:
+      POSTGRES_DB: inventory_kantor
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventory-pgdata:/var/lib/postgresql/data
+    networks:
+      - inventory-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inventory-laravel
+    ports:
+      - "8080:80"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=inventory_kantor
+      - DB_USERNAME=inventory_user
+      - DB_PASSWORD=inventory_pass
+    depends_on:
+      - postgres
+    volumes:
+      - .:/var/www/html
+      - /mnt/DATA/imagepublic:/var/www/html/storage/app/public
+    networks:
+      - inventory-network
+
+networks:
+  inventory-network:
+    driver: bridge
+
+volumes:
+  inventory-pgdata:

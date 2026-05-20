@@ -1,5 +1,92 @@
 @extends('layouts.app')
 
+@push('styles')
+<style>
+    @media (max-width: 768px) {
+        #tableArchive tbody tr {
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            padding: 15px;
+            border: 1px solid #e9edf7;
+            border-radius: 10px;
+            background: #fff;
+        }
+        
+        /* Hide table headers on mobile */
+        #tableArchive thead { display: none; }
+        
+        /* Convert td to flex with label */
+        #tableArchive td {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center;
+            border: none !important;
+            padding: 8px 5px !important;
+            border-bottom: 1px dashed #e9edf7 !important;
+        }
+        
+        #tableArchive td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            color: #a3adc2;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            flex-shrink: 0;
+            margin-right: 10px;
+        }
+        
+        /* Specific column adjustments */
+        #tableArchive td:nth-child(1)::before { content: 'NAMA ASSET'; }
+        #tableArchive td:nth-child(2)::before { content: 'STATUS KELUAR'; }
+        #tableArchive td:nth-child(3)::before { content: 'KETERANGAN'; }
+        #tableArchive td:nth-child(4)::before { content: 'STOK'; }
+        #tableArchive td:nth-child(5)::before { content: 'AKSI'; }
+        
+        /* Action column - hide label and make buttons horizontal */
+        #tableArchive td:last-child {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: flex-end !important;
+            gap: 5px;
+            padding-top: 15px !important;
+            border-top: 1px dashed #e9edf7 !important;
+            margin-top: 10px;
+            border-bottom: none !important;
+        }
+        
+        #tableArchive td:last-child::before {
+            display: none;
+        }
+        
+        .action-buttons-archive {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        
+        .action-buttons-archive .btn {
+            padding: 5px 8px;
+            font-size: 0.8rem;
+        }
+        
+        /* Stock info on mobile */
+        #tableArchive td:nth-child(4) {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+        }
+        #tableArchive td:nth-child(4)::before {
+            margin-bottom: 5px;
+        }
+        #tableArchive td:nth-child(4) .small {
+            display: flex;
+            gap: 10px;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="container">
     <div class="row">
@@ -8,13 +95,14 @@
                 
                 <div class="row mb-4 align-items-center">
                     <div class="col-md-8">
-                        <h1 class="fw-bold text-secondary text-center text-md-start display-4" style="letter-spacing: -2px;">
-                            Arsip & Riwayat Barang
-                        </h1>
+                        <h2 class="fw-bold text-secondary">
+                            <i class="bi bi-archive-fill me-2"></i>Archive & History
+                        </h2>
+                        <p class="text-muted mb-0">Archived items or removed from inventory</p>
                     </div>
                     <div class="col-md-4 text-md-end mt-3 mt-md-0">
                         <a href="{{ url('/products') }}" class="btn btn-outline-primary fw-bold px-4">
-                            <i class="bi bi-arrow-left me-2"></i> Kembali ke Daftar Aktif
+                            <i class="bi bi-arrow-left me-2"></i> Back to Active List
                         </a>
                     </div>
                 </div>
@@ -33,11 +121,11 @@
                         <tbody>
                             @foreach($barang as $b) 
                             <tr>
-                                <td>
+                                <td data-label="NAMA">
                                     <strong class="d-block text-primary fs-6">{{ $b->name }}</strong>
                                     <span class="badge bg-{{ $b->warranty_color }} shadow-sm">{{ $b->sku }}</span>
                                 </td>
-                                <td>
+                                <td data-label="STATUS">
                                     @if($b->is_active == 'jual')
                                         <span class="badge bg-success px-3 py-2 shadow-sm"><i class="bi bi-cash-coin me-1"></i> TERJUAL</span>
                                     @elseif($b->is_active == 'destroy')
@@ -48,39 +136,38 @@
                                         <span class="badge bg-dark px-3 py-2 shadow-sm">{{ strtoupper($b->is_active) }}</span>
                                     @endif
                                 </td>
-                                <td>
+                                <td data-label="KETERANGAN">
                                     <small class="text-muted text-wrap" style="max-width: 250px; display: inline-block;">
                                         {{ $b->logs()->latest()->first()->description ?? 'Tidak ada catatan spesifik.' }}
                                     </small>
                                 </td>
-                                <td>
-                                    <div class="small" style="font-size: 0.85rem;">
-                                        <span class="text-success">Ready: <strong>{{ $b->stock_ready }}</strong></span><br>
-                                        <span class="text-warning text-dark">Servis: <strong>{{ $b->stock_repair }}</strong></span><br>
-                                        <span class="text-danger">Rusak: <strong>{{ $b->stock_broken }}</strong></span>
-                                    </div>
-                                    <hr class="my-1 border-secondary">
-                                    <div class="fw-bold fs-6">
-                                        Total: {{ $b->stock_ready + $b->stock_repair + $b->stock_broken }}
-                                    </div>
+                                <td data-label="KONDISI">
+                                    @php
+                                        $cond = strtolower($b->condition ?? 'ready');
+                                        $badgeClass = $cond == 'ready' ? 'bg-success' : ($cond == 'repair' ? 'bg-warning text-dark' : ($cond == 'broken' ? 'bg-danger' : 'bg-secondary'));
+                                        $condLabel = $cond == 'ready' ? 'Ready' : ($cond == 'repair' ? 'Servis' : ($cond == 'broken' ? 'Rusak' : 'Dibuang'));
+                                    @endphp
+                                    <span class="badge {{ $badgeClass }} fs-6">{{ $condLabel }}</span>
                                 </td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-outline-info btn-detail" data-id="{{ $b->id }}" title="Detail">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-warning btn-logs" data-id="{{ $b->id }}" title="Log History">
-                                        <i class="bi bi-clock-history"></i>
-                                    </button>
-                                    
-                                    <button type="button" class="btn btn-sm btn-success btn-restore ms-1" data-id="{{ $b->id }}" title="Restore">
-                                        <i class="bi bi-arrow-counterclockwise"></i> Restore
-                                    </button>
+                                <td data-label="AKSI">
+                                    <div class="action-buttons-archive">
+                                        <button type="button" class="btn btn-sm btn-outline-info btn-detail" data-id="{{ $b->id }}" title="Detail">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-warning btn-logs" data-id="{{ $b->id }}" title="Log History">
+                                            <i class="bi bi-clock-history"></i>
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-sm btn-success btn-restore" data-id="{{ $b->id }}" title="Restore">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
 
-                                    @can('admin-only')
-                                    <button type="button" class="btn btn-sm btn-danger btn-delete ms-1" data-id="{{ $b->id }}" title="Hapus Permanen">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endcan
+                                        @can('admin-only')
+                                        <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="{{ $b->id }}" title="Hapus Permanen">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        @endcan
+                                    </div>
                                 </td>
                             </tr>
                             @endforeach
@@ -285,18 +372,17 @@
 
                         <div class="card bg-light border-0 mb-3 shadow-sm">
                             <div class="card-body p-2">
-                                <small class="text-muted d-block fw-bold mb-2">Rincian Stok Arsip (Total: ${data.stock})</small>
-                                <div class="d-flex justify-content-between text-center" style="font-size: 0.85rem;">
-                                    <div><span class="text-success fw-bold fs-5">${data.stock_ready || 0}</span><br>Ready</div>
-                                    <div><span class="text-warning text-dark fw-bold fs-5">${data.stock_repair || 0}</span><br>Servis</div>
-                                    <div><span class="text-danger fw-bold fs-5">${data.stock_broken || 0}</span><br>Rusak</div>
+                                <small class="text-muted d-block fw-bold mb-2">Kondisi</small>
+                                <div class="d-flex justify-content-center">
+                                    ${getConditionBadge(data.condition)}
                                 </div>
                             </div>
                         </div>
 
                         <table class="table table-sm table-borderless" style="font-size: 0.95rem;">
-                            <tr><td width="40%" class="text-muted">Harga Beli</td><td class="fw-bold text-success">: ${harga}</td></tr>
+                            <tr><td width="40%" class="text-muted">Supplier</td><td class="fw-bold">: ${data.supplier?.name || '-'}</td></tr>
                             <tr><td class="text-muted">Tanggal Beli</td><td>: ${tglBeli}</td></tr>
+                            <tr><td class="text-muted">Harga Beli</td><td class="fw-bold text-success">: ${harga}</td></tr>
                             <tr><td class="text-muted">Masa Garansi</td><td class="fw-bold text-${warnaBadge === 'warning text-dark' ? 'warning' : warnaBadge}">: ${tglGaransi}</td></tr>
                             <tr><td class="text-muted">Tipe Penggunaan</td><td>: ${data.usage_type || '-'}</td></tr>
                             <tr><td class="text-muted">Terakhir Audit</td><td class="fw-bold">: ${tglAudit}</td></tr>
@@ -341,14 +427,20 @@
                         <tr>
                             <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Pemegang Terakhir</td>
                             <td style="padding: 5px; border: 1px solid #ddd;">${namaPemegang}</td>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Supplier</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${data.supplier?.name || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Tanggal Beli</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${tglBeli}</td>
                             <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Harga Beli</td>
                             <td style="padding: 5px; border: 1px solid #ddd;">${harga}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Tanggal Beli | Masa Garansi</td>
-                            <td style="padding: 5px; border: 1px solid #ddd;">${tglBeli} | ${tglGaransi}</td>
-                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Status Stok</td>
-                            <td style="padding: 5px; border: 1px solid #ddd;">Ready: ${data.stock_ready} | Servis: ${data.stock_repair} | Rusak: ${data.stock_broken}</td>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Masa Garansi</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${tglGaransi}</td>
+                            <td style="padding: 5px; font-weight: bold; border: 1px solid #ddd;">Kondisi</td>
+                            <td style="padding: 5px; border: 1px solid #ddd;">${getConditionBadge(data.condition)}</td>
                         </tr>
                     </table>
                     <h4 style="border-left: 5px solid #333; padding-left: 10px; margin-bottom: 10px;">DOKUMENTASI FOTO</h4>
