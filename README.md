@@ -12,3 +12,4 @@ A robust and professional asset management application built with Laravel to tra
 - **Backend:** Laravel 10/11, PHP
 - **Frontend:** Bootstrap 5, Blade, Chart.js
 - **Database & Tools:** MySQL, Yajra DataTables Ajax
+<img width="1266" height="554" alt="image" src="https://github.com/user-attachments/assets/9f453ea7-46c7-4b82-97f8-5b886ffd4495" />
