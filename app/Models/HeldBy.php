@@ -8,4 +8,9 @@ class HeldBy extends Model
 {
     protected $table = 'held_bies'; 
     protected $fillable = ['name'];
+
+    public function products()
+    {
+        return $this->hasMany(\App\Models\Product::class);
+    }
 }

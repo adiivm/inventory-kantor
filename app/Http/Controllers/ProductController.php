@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Http\Request;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ProductExport;
@@ -21,6 +23,9 @@ use App\Models\Location;
 use App\Models\Supplier;
 
 use App\Models\ProductImage;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use App\Enums\ProductCondition;
 
 class ProductController extends Controller
 {
@@ -99,7 +104,7 @@ class ProductController extends Controller
             'search' => 'nullable|string|max:255',
             'category_id' => 'nullable|integer',
             'division_id' => 'nullable|integer',
-            'condition' => 'nullable|string|in:ready,repair,broken',
+            'condition' => ['nullable', 'string', Rule::enum(ProductCondition::class)],
             'filter' => 'nullable|string',
         ]);
 
@@ -160,18 +165,7 @@ class ProductController extends Controller
         return Excel::download(new ProductExport($filters), $fileName);
     }
 
-    public function store(Request $request) {
-        // 1. Validasi
-        $request->validate([
-            'sku'            => 'required|unique:products,sku',
-            'name'           => 'required',
-            'condition'      => 'required|in:ready,repair,broken,disposed',
-            'images.*'       => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
-            'warranty_expiry_date' => 'nullable|date',
-            'purchase_date' => 'nullable|date',
-        ], [
-            'sku.unique' => 'Waduh Mas Bro, SKU ini sudah dipakai barang lain!'
-        ]);
+    public function store(StoreProductRequest $request) {
 
         // Simpan ke Database Produk
         $product = Product::create([
@@ -222,18 +216,9 @@ class ProductController extends Controller
         return redirect('/products')->with('success', 'Barang baru berhasil ditambahkan!');
     }
 
-    public function update(Request $request, $id) {
+    public function update(UpdateProductRequest $request, $id) {
         $product = Product::with(['category', 'division', 'heldBy', 'location', 'supplier'])->findOrFail($id);
         $this->authorize('update', $product);
-
-        $request->validate([
-            'sku' => 'required|unique:products,sku,' . $id,
-            'image' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
-            'name'  => 'required',
-            'condition' => 'required|in:ready,repair,broken,disposed',
-            'warranty_expiry_date' => 'nullable|date',
-            'purchase_date' => 'nullable|date',
-        ]);
 
         $oldData = $product->getOriginal();
 
@@ -392,7 +377,8 @@ class ProductController extends Controller
         if ($request->ajax()) {
             // --- MODIFIKASI: Tambahkan 'latestAudit', 'supplier' di dalam with() ---
             $query = \App\Models\Product::with(['category', 'division', 'heldBy', 'location', 'images', 'latestAudit', 'supplier'])
-                    ->where('is_active', 'active');
+                    ->active()
+                    ->orderBy('sku', 'desc');
 
             // --- Search Multi-Field (DataTables search + search_sku) ---
             $searchValue = $request->input('search.value');
@@ -425,17 +411,11 @@ class ProductController extends Controller
             }
 
             // --- Filter Garansi ---
-            $today = now()->format('Y-m-d');
-            $thirtyDaysFromNow = now()->addDays(30)->format('Y-m-d');
-            
             $warranty_status = $request->get('warranty_status');
             if ($warranty_status == 'critical') {
-                $query->whereNotNull('warranty_expiry_date')
-                      ->whereDate('warranty_expiry_date', '>=', $today)
-                      ->whereDate('warranty_expiry_date', '<=', $thirtyDaysFromNow);
+                $query->warrantyCritical();
             } elseif ($warranty_status == 'expired') {
-                $query->whereNotNull('warranty_expiry_date')
-                      ->whereDate('warranty_expiry_date', '<', $today);
+                $query->warrantyExpired();
             }
 
             return Datatables::of($query)
@@ -528,7 +508,7 @@ class ProductController extends Controller
                     return '<strong class="text-primary">' . $auditor . '</strong><br><small class="text-muted">' . $tgl . '</small>' . $notes;
                 })
                 ->addColumn('action', function($row) {
-                    $deleteBtn = strtolower(auth()->user()->role) === 'admin' ? '
+                    $deleteBtn = Gate::allows('admin-only') ? '
                                 <button type="button" class="btn btn-sm btn-danger" onclick="forceDelete('.$row->id.')" title="Delete Permanen">
                                     <i class="bi bi-trash"></i>
                                 </button>' : '';
@@ -625,7 +605,7 @@ class ProductController extends Controller
     public function trash(Request $request) {
         if ($request->ajax()) {
             $query = \App\Models\Product::with(['category', 'division', 'logs', 'heldBy', 'location', 'supplier', 'latestAudit'])
-                    ->where('is_active', '!=', 'active');
+                    ->notActive();
 
             $searchValue = $request->input('search.value');
             if (!empty($searchValue)) {
@@ -677,7 +657,7 @@ class ProductController extends Controller
                     return '<span class="badge ' . $class . ' fs-6">' . $label . '</span>';
                 })
                 ->addColumn('action', function($row) {
-                    $deleteBtn = auth()->user() && strtolower(auth()->user()->role) === 'admin' ? '
+                    $deleteBtn = Gate::allows('admin-only') ? '
                         <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="'.$row->id.'" title="Hapus Permanen">
                             <i class="bi bi-trash"></i>
                         </button>' : '';

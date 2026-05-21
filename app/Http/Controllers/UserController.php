@@ -6,16 +6,16 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use App\Enums\UserRole;
 
 class UserController extends Controller
 {
     // Munculkan Tabel User
     public function index()
     {
-        // Proteksi: Cuma Admin yang boleh liat daftar user
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Akses Ditolak! Anda bukan Admin.');
-        }
+        Gate::authorize('admin-only');
 
         $users = User::all();
         return view('users_index', compact('users')); // Pastikan file blade namanya users_index.blade.php
@@ -28,7 +28,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-            'role'     => 'required|in:admin,staff', // Validasi pilihan role
+            'role'     => ['required', Rule::enum(UserRole::class)],
         ]);
 
         User::create([
@@ -49,7 +49,7 @@ class UserController extends Controller
         $request->validate([
             'name'  => 'required',
             'email' => 'required|email|unique:users,email,'.$id,
-            'role'  => 'required|in:admin,staff',
+            'role'  => ['required', Rule::enum(UserRole::class)],
         ]);
 
         $user->name  = $request->name;

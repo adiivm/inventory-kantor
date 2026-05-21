@@ -4,22 +4,41 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class CategoryController extends Controller
 {
     public function store(Request $request)
     {
-        // Validasi input
         $request->validate([
-            'name' => 'required|unique:categories,name' // sesuaikan nama tabel
+            'name' => 'required|unique:categories,name'
         ], [
-            'name.unique' => 'Nama kategori ini sudah ada di daftar!' // Pesan custom
+            'name.unique' => 'Nama kategori ini sudah ada di daftar!'
         ]);
 
-        // Simpan ke database
         $category = Category::create(['name' => $request->name]);
 
-        // Kirim balik data dalam bentuk JSON agar ditangkap oleh JavaScript
         return response()->json($category);
+    }
+
+    public function destroy($id)
+    {
+        Gate::authorize('admin-only');
+
+        $category = Category::findOrFail($id);
+
+        if ($category->products()->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kategori tidak bisa dihapus karena masih digunakan oleh ' . $category->products()->count() . ' produk.'
+            ], 422);
+        }
+
+        $category->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kategori berhasil dihapus.'
+        ]);
     }
 }

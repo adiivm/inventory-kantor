@@ -95,8 +95,7 @@
                                 name="price_display" 
                                 class="form-control" 
                                 placeholder="Contoh: 1.000.000" 
-                                value="{{ number_format($product->price, 0, ',', '.') }}"
-                                required>
+                                value="{{ $product->price ? number_format($product->price, 0, ',', '.') : '' }}">
                             <input type="hidden" name="price" id="priceReal" value="{{ $product->price }}">
                         </div>
                     </div>

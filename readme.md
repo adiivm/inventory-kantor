@@ -222,7 +222,20 @@ Sebelum import Excel, bisa download template kosong:
 
 ## Changelog
 
-### 2026-05-21
+### 2026-05-21 — Sesi 1
+- **Form Request Validation**: `StoreProductRequest`, `UpdateProductRequest` — validasi dipisah dari controller ke Form Request
+- **Eloquent Scopes**: `active()`, `notActive()`, `warrantyCritical()`, `warrantyExpired()`, `condition()`, `stockLow()` — query berulang disederhanakan
+- **Model Observer**: `ProductObserver` — logic `saving()` (stock=1, default condition) dipindah dari model
+- **PHP 8 Enums**: `ProductCondition`, `ProductStatus`, `UserRole` — type-safe, validasi pakai `Rule::enum()`
+- **Policy Improvement**: Inline `role` check diganti `Gate::allows('admin-only')` / `Gate::authorize('admin-only')`
+- **Custom Artisan Command**: `inventory:check-warranty` — cek garansi kritis/expired dari CLI
+- **Task Scheduling**: `CheckWarrantyJob` dijadwalkan tiap jam 08:00 via `routes/console.php`
+- **Cron + Queue Worker**: `cron` + `queue:work` berjalan otomatis di container via `docker-entrypoint.sh`
+- **Queue + Notification**: `CheckWarrantyJob` + `WarrantyCriticalAlert` (database channel) — notifikasi garansi muncul di bell icon navbar
+- **Migration Notifications**: Tabel `notifications` (UUID, morphs, data JSON, read_at)
+- **Rebuild Container**: `docker compose build --no-cache app` + restart container untuk aktifkan cron & queue worker
+
+### 2026-05-21 — Sesi 0 (Sebelum ada changelog)
 - **SKU Format**: Semua SKU diubah menjadi 8 digit (`IVM-00000001` s.d. `IVM-00000032`) dan berurutan berdasarkan ID
 - **SKU Generate**: Auto-generate SKU di create & import menggunakan format 8 digit
 - **Unique Constraints**: Menambahkan UNIQUE constraint ke `categories.name`, `divisions.name`, `suppliers.name`
@@ -249,3 +262,9 @@ Sebelum import Excel, bisa download template kosong:
 - **Notifikasi Session**: Success/error alert dipindah ke `@push('scripts')` agar tampil
 - **Dashboard**: Card "Aset Archive" sekarang menghitung semua non-aktif (`!= 'active'`), bukan hanya `archive`
 - **SoftDelete Import**: Hapus `use SoftDeletes` (tidak dipakai)
+### Latest
+- **Master Data page** (`/master-data`): manage Categories, Divisions, Held By, Locations with admin-only delete + FK protection
+- **Price & purchase_date** made nullable (database + Form Requests)
+- **Supplier AJAX fix**: `SupplierController@store` now uses `Validator` directly to always return JSON; JS `.then()` handles `data.success === false`
+- **Product form alert**: SweetAlert2 warning if Category/Division not selected
+- **Product index** ordered by SKU descending (newest first)

@@ -16,7 +16,7 @@ class Product extends Model
 
     protected $casts = [
         'warranty_expiry_date' => 'date',
-        'purchase_date' => 'date', // Pastikan kolom tanggal lain juga masuk sini
+        'purchase_date' => 'date',
     ];
 
     public function category()
@@ -40,20 +40,6 @@ class Product extends Model
     public function location()
     {
         return $this->belongsTo(Location::class, 'location_id');
-    }
-
-    protected static function boot() {
-        parent::boot();
-
-        static::saving(function ($product) {
-            // Set stock = 1 untuk setiap item (1 SKU = 1 item)
-            $product->stock = 1;
-            
-            // Default condition jika kosong
-            if (empty($product->condition)) {
-                $product->condition = 'ready';
-            }
-        });
     }
 
     // Di dalam class Product
@@ -82,6 +68,39 @@ class Product extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', 'active');
+    }
+
+    public function scopeNotActive($query)
+    {
+        return $query->where('is_active', '!=', 'active');
+    }
+
+    public function scopeWarrantyCritical($query)
+    {
+        return $query->whereNotNull('warranty_expiry_date')
+            ->whereDate('warranty_expiry_date', '>=', now())
+            ->whereDate('warranty_expiry_date', '<=', now()->addDays(30));
+    }
+
+    public function scopeWarrantyExpired($query)
+    {
+        return $query->whereNotNull('warranty_expiry_date')
+            ->whereDate('warranty_expiry_date', '<', now());
+    }
+
+    public function scopeCondition($query, $condition)
+    {
+        return $query->where('condition', $condition);
+    }
+
+    public function scopeStockLow($query, $threshold = 5)
+    {
+        return $query->where('stock', '<=', $threshold)->where('stock', '>', 0);
     }
 
     public function getSupplierNameAttribute()

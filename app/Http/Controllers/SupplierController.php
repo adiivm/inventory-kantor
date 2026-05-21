@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 
 class SupplierController extends Controller
@@ -34,7 +35,7 @@ class SupplierController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:suppliers,name',
             'contact_person' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
@@ -45,7 +46,15 @@ class SupplierController extends Controller
             'name.unique' => 'Nama supplier sudah ada! Silakan gunakan nama lain.'
         ]);
 
-        $supplier = Supplier::create($validated);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $supplier = Supplier::create($validator->validated());
 
         return response()->json([
             'success' => true,

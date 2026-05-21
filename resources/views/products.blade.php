@@ -2,63 +2,82 @@
 
 @push('styles')
 <style>
-    @media (max-width: 768px) {
-        /* Memperbaiki jarak antar baris aset */
+    /* --- TABLET: SEMBUNYIKAN KOLOM KURANG PENTING --- */
+    @media (max-width: 1024px) and (min-width: 768px) {
+        #tableProduct th:nth-child(4),
+        #tableProduct td:nth-child(4),
+        #tableProduct th:nth-child(7),
+        #tableProduct td:nth-child(7) {
+            display: none;
+        }
+    }
+
+    /* --- MOBILE: CARD LAYOUT --- */
+    @media (max-width: 767px) {
+        .table-responsive {
+            overflow: visible !important;
+        }
+        #tableProduct {
+            width: 100% !important;
+        }
+        #tableProduct thead {
+            display: none;
+        }
         #tableProduct tbody tr {
+            display: block;
             margin-bottom: 1rem;
+            background: #fff;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            padding: 15px;
+            border-radius: 12px;
+            padding: 12px;
         }
-
-        /* Mengatur gambar agar tidak aneh posisinya */
-        #tableProduct td:nth-child(3) {
-            justify-content: flex-end;
+        #tableProduct tbody td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border: none;
+            border-bottom: 1px solid #f0f0f0;
         }
-        #tableProduct td:nth-child(3) img {
-            width: 60px !important;
-            height: auto !important;
-            border-radius: 8px;
+        #tableProduct tbody td:last-child {
+            border-bottom: none;
         }
-
-        /* Merapikan Tombol Aksi agar berbaris menyamping, bukan memanjang ke bawah */
-        #tableProduct td:last-child {
-            display: flex !important;
-            justify-content: flex-end !important;
-            gap: 5px;
-            padding-top: 15px !important;
-            border-top: 1px dashed #e9edf7 !important;
-            margin-top: 10px;
+        #tableProduct tbody td::before {
+            content: attr(data-label);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #a3adc2;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            flex-shrink: 0;
+            margin-right: 10px;
         }
-        
-        /* Hilangkan text label "AKSI" bawaan CSS utama agar tombol punya ruang penuh */
-        #tableProduct td:last-child::before {
-            display: none; 
+        #tableProduct tbody td[data-label="AKSI"]::before,
+        #tableProduct tbody td[data-label=""]::before {
+            display: none;
         }
-
-        /* Memastikan form/tombol di dalam aksi menggunakan flexbox menyamping */
+        #tableProduct td:nth-child(1),
+        #tableProduct td:nth-child(5),
+        #tableProduct td:nth-child(7) {
+            display: none;
+        }
+        #tableProduct td:nth-child(4) img {
+            width: 50px !important;
+            height: 35px !important;
+            border-radius: 6px;
+        }
         .action-buttons {
             display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            gap: 5px;
-            justify-content: flex-start;
+            justify-content: flex-end;
+            gap: 4px;
             width: 100%;
         }
-        
-        @media (max-width: 768px) {
-            .action-buttons {
-                flex-wrap: wrap;
-                justify-content: flex-end;
-            }
-        }
-        
-        /* Ukuran tombol lebih proporsional di HP */
         .action-buttons .btn {
-            padding: 6px 10px;
+            padding: 5px 8px;
+            font-size: 0.75rem;
+        }
+        .action-buttons .btn i {
             font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
     }
 </style>
@@ -79,24 +98,24 @@
                 </div>
 
                 <div class="row g-2 mb-4">
-                    <div class="col-12 col-md-auto">
+                    <div class="col-6 col-md-auto">
                         <a href="{{ route('product.import_template') }}" class="btn btn-outline-success w-100 fw-bold px-md-3">
-                            <i class="bi bi-download me-2"></i> Download Template
+                            <i class="bi bi-download me-2"></i> <span class="d-none d-md-inline">Download Template</span>
                         </a>
                     </div>
-                    <div class="col-12 col-md-auto">
+                    <div class="col-6 col-md-auto">
                         <button class="btn btn-outline-primary w-100 fw-bold px-md-3" data-bs-toggle="modal" data-bs-target="#modalImport">
-                            <i class="bi bi-upload me-2"></i> Import Excel
+                            <i class="bi bi-upload me-2"></i> <span class="d-none d-md-inline">Import Excel</span>
                         </button>
                     </div>
-                    <div class="col-12 col-md-auto">
+                    <div class="col-6 col-md-auto">
                         <button class="btn btn-success w-100 fw-bold px-md-3" onclick="bulkPrintLabels()" id="btnBulkPrint" disabled>
-                            <i class="bi bi-printer me-2"></i> Print Selected (<span id="selectedCount">0</span>)
+                            <i class="bi bi-printer me-2"></i> <span class="d-none d-md-inline">Print Selected</span> (<span id="selectedCount">0</span>)
                         </button>
                     </div>
-                    <div class="col-12 col-md-auto ms-md-auto">
+                    <div class="col-6 col-md-auto ms-md-auto">
                         <a href="/product/create" class="btn btn-primary w-100 fw-bold px-md-5">
-                            + Tambah Barang
+                            + <span class="d-none d-md-inline">Tambah Barang</span>
                         </a>
                     </div>
                 </div>
@@ -398,19 +417,19 @@
             ],
             // --- TAMBAHKAN BAGIAN INI UNTUK TAMPILAN MOBILE ---
             createdRow: function(row, data, dataIndex) {
-                $(row).find('td:eq(0)').attr('data-label', 'SKU');
-                $(row).find('td:eq(1)').attr('data-label', 'NAMA ASSETS');
-                $(row).find('td:eq(2)').attr('data-label', 'IMAGE');
-                $(row).find('td:eq(3)').attr('data-label', 'KATEGORI');
-                $(row).find('td:eq(4)').attr('data-label', 'DIVISI');
-                $(row).find('td:eq(5)').attr('data-label', 'SUPPLIER');
-                $(row).find('td:eq(6)').attr('data-label', 'KONDISI');
-                $(row).find('td:eq(7)').attr('data-label', 'PEMEGANG');
-                $(row).find('td:eq(8)').attr('data-label', 'AKSI');
+                $(row).find('td:eq(0)').attr('data-label', '');
+                $(row).find('td:eq(1)').attr('data-label', 'SKU');
+                $(row).find('td:eq(2)').attr('data-label', 'NAMA');
+                $(row).find('td:eq(3)').attr('data-label', '');
+                $(row).find('td:eq(4)').attr('data-label', 'KATEGORI');
+                $(row).find('td:eq(5)').attr('data-label', 'DIVISI');
+                $(row).find('td:eq(6)').attr('data-label', 'SUPPLIER');
+                $(row).find('td:eq(7)').attr('data-label', 'KONDISI');
+                $(row).find('td:eq(8)').attr('data-label', 'PEMEGANG');
+                $(row).find('td:eq(9)').attr('data-label', 'AKSI');
                 
-                // Bungkus tombol aksi dengan div class action-buttons agar mudah di-styling di HP
-                let actionHtml = $(row).find('td:eq(8)').html();
-                $(row).find('td:eq(8)').html('<div class="action-buttons">' + actionHtml + '</div>');
+                let actionHtml = $(row).find('td:eq(9)').html();
+                $(row).find('td:eq(9)').html('<div class="action-buttons">' + actionHtml + '</div>');
             },
             // ---------------------------------------------------
             // Styling tambahan agar mirip gambar
@@ -541,14 +560,14 @@
                             </div>
                         </div>
 
-                        <table class="table table-sm table-borderless" style="font-size: 0.95rem;">
-                            <tr><td width="40%" class="text-muted">Supplier</td><td class="fw-bold">: ${data.supplier?.name || '-'}</td></tr>
-                            <tr><td class="text-muted">Harga Beli</td><td class="fw-bold text-success">: ${harga}</td></tr>
-                            <tr><td class="text-muted">Tanggal Beli</td><td>: ${tglBeli}</td></tr>
-                            <tr><td class="text-muted">Masa Garansi</td><td class="fw-bold text-${warnaBadge === 'warning text-dark' ? 'warning' : warnaBadge}">: ${tglGaransi}</td></tr>
-                            <tr><td class="text-muted">Tipe Penggunaan</td><td>: ${data.usage_type || '-'}</td></tr>
-                            <tr><td class="text-muted">Terakhir Audit</td><td class="fw-bold">: ${tglAudit}</td></tr>
-                        </table>
+                        <div style="font-size: 0.95rem;">
+                            <div class="d-flex py-1 border-bottom border-light"><span class="text-muted" style="width: 110px; flex-shrink: 0;">Supplier</span><span class="fw-bold">: ${data.supplier?.name || '-'}</span></div>
+                            <div class="d-flex py-1 border-bottom border-light"><span class="text-muted" style="width: 110px; flex-shrink: 0;">Harga Beli</span><span class="fw-bold text-success">: ${harga}</span></div>
+                            <div class="d-flex py-1 border-bottom border-light"><span class="text-muted" style="width: 110px; flex-shrink: 0;">Tanggal Beli</span><span>: ${tglBeli}</span></div>
+                            <div class="d-flex py-1 border-bottom border-light"><span class="text-muted" style="width: 110px; flex-shrink: 0;">Masa Garansi</span><span class="fw-bold text-${warnaBadge === 'warning text-dark' ? 'warning' : warnaBadge}">: ${tglGaransi}</span></div>
+                            <div class="d-flex py-1 border-bottom border-light"><span class="text-muted" style="width: 110px; flex-shrink: 0;">Tipe Penggunaan</span><span>: ${data.usage_type || '-'}</span></div>
+                            <div class="d-flex py-1"><span class="text-muted" style="width: 110px; flex-shrink: 0;">Terakhir Audit</span><span class="fw-bold">: ${tglAudit}</span></div>
+                        </div>
                     </div>
                 </div>
                 

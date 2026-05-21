@@ -90,7 +90,38 @@ Route::middleware('auth')->group(function () {
         $data = Location::create(['name' => $request->name]);
         return response()->json($data);
     });
-    
+
+    // Hapus master data via AJAX (admin only)
+    Route::delete('/api/categories/{id}', [CategoryController::class, 'destroy']);
+    Route::delete('/api/divisions/{id}', [DivisionController::class, 'destroy']);
+    Route::delete('/api/held_bies/{id}', function ($id) {
+        \Illuminate\Support\Facades\Gate::authorize('admin-only');
+        $item = HeldBy::findOrFail($id);
+        if ($item->products()->exists()) {
+            return response()->json(['success' => false, 'message' => 'Pemegang tidak bisa dihapus karena masih digunakan oleh ' . $item->products()->count() . ' produk.'], 422);
+        }
+        $item->delete();
+        return response()->json(['success' => true, 'message' => 'Pemegang berhasil dihapus.']);
+    });
+    Route::delete('/api/locations/{id}', function ($id) {
+        \Illuminate\Support\Facades\Gate::authorize('admin-only');
+        $item = Location::findOrFail($id);
+        if ($item->products()->exists()) {
+            return response()->json(['success' => false, 'message' => 'Lokasi tidak bisa dihapus karena masih digunakan oleh ' . $item->products()->count() . ' produk.'], 422);
+        }
+        $item->delete();
+        return response()->json(['success' => true, 'message' => 'Lokasi berhasil dihapus.']);
+    });
+
+    /** --- MASTER DATA --- **/
+    Route::get('/master-data', function () {
+        return view('master_data', [
+            'categories' => \App\Models\Category::orderBy('name')->get(),
+            'divisions' => \App\Models\Division::orderBy('name')->get(),
+            'held_bies' => \App\Models\HeldBy::orderBy('name')->get(),
+            'locations' => \App\Models\Location::orderBy('name')->get(),
+        ]);
+    })->name('master.data');
 
     /** --- PROFILE --- **/
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');

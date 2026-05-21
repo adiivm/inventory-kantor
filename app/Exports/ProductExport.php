@@ -24,9 +24,9 @@ class ProductExport implements FromQuery, WithHeadings, WithMapping, WithChunkRe
         $query = Product::with(['category', 'division', 'location', 'heldBy', 'latestAudit', 'supplier']);
 
         if (empty($this->filters['include_inactive'])) {
-            $query->where('is_active', 'active');
+            $query->active();
         } elseif ($this->filters['include_inactive'] == '2') {
-            $query->where('is_active', '!=', 'active');
+            $query->notActive();
         }
 
         if (!empty($this->filters['category_id'])) {

@@ -229,6 +229,9 @@
             <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->is('suppliers*') ? 'active' : '' }}">
                 <i class="bi bi-truck"></i> Suppliers
             </a>
+            <a href="{{ route('master.data') }}" class="nav-link {{ request()->is('master-data*') ? 'active' : '' }}">
+                <i class="bi bi-database-gear"></i> Master Data
+            </a>
             @endif
 
             <div class="mt-auto p-3">
@@ -251,17 +254,36 @@
             <h2 class="mb-0 fw-bold d-none d-sm-block text-muted">Selamat Datang {{ Auth::user()->name }}👋</h2>
 
             <div class="user-info d-flex align-items-center gap-2">
-                <!-- Notifikasi Garansi Kritis -->
-                @if($jmlGaransiKritis > 0)
+                <!-- Notifikasi -->
+                @if($jmlGaransiKritis > 0 || $jmlNotifikasi > 0)
                 <div class="dropdown me-2">
                     <a href="#" class="position-relative text-dark d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-bell-fill text-warning" style="font-size: 1.1rem;"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; min-width: 16px; height: 16px;">
-                            {{ $jmlGaransiKritis }}
+                        <i class="bi bi-bell-fill text-warning" style="font-size: 1.3rem;"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.85rem; min-width: 24px; height: 24px;">
+                            {{ $jmlGaransiKritis + $jmlNotifikasi }}
                         </span>
                     </a>
-                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 280px; max-width: 90vw; border-radius: 12px;">
-                        <div class="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-width: 90vw; border-radius: 12px;">
+                        @if($jmlNotifikasi > 0)
+                        <div class="px-2 py-2 border-bottom">
+                            <span class="fw-bold text-primary small"><i class="bi bi-info-circle me-1"></i> Notifikasi Sistem</span>
+                        </div>
+                        @foreach($unreadNotifications as $notif)
+                        <a href="{{ route('product.index', ['warranty_status' => 'critical']) }}" class="dropdown-item py-2 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block" style="font-size: 0.8rem;">
+                                        {{ $notif->data['total'] ?? 0 }} Produk
+                                    </strong>
+                                    <span class="text-muted" style="font-size: 0.7rem;">{{ $notif->data['message'] ?? '' }}</span>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.65rem;">{{ $notif->created_at->diffForHumans() }}</small>
+                            </div>
+                        </a>
+                        @endforeach
+                        <div class="border-bottom my-1"></div>
+                        @endif
+                        <div class="d-flex justify-content-between align-items-center px-2 py-2">
                             <span class="fw-bold text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Garansi Kritis</span>
                             <a href="{{ route('product.index', ['warranty_status' => 'critical']) }}" class="btn btn-sm btn-warning py-1 px-2" style="font-size: 0.7rem;">Lihat</a>
                         </div>
@@ -764,11 +786,12 @@
                     document.getElementById('new_supplier_phone').value = '';
                     document.getElementById('new_supplier_email').value = '';
                     document.getElementById('new_supplier_address').value = '';
+                } else {
+                    Swal.fire('Error', data.message || 'Terjadi kesalahan', 'error');
                 }
             })
             .catch(e => {
-                const errorMsg = e.response?.data?.message || e.message || 'Terjadi kesalahan';
-                Swal.fire('Error', errorMsg, 'error');
+                Swal.fire('Error', e.message || 'Terjadi kesalahan', 'error');
             });
         };
 

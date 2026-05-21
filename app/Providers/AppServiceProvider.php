@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use App\Models\User;
 use App\Models\Product;
+use App\Observers\ProductObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Product::observe(ProductObserver::class);
+
         // Aturan 1: Hanya Admin yang boleh mengelola user dan hapus barang
         Gate::define('admin-only', function (User $user) {
             return $user->role === 'admin';
@@ -33,22 +36,27 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === 'admin' || $user->role === 'staff';
         });
 
-        // View Composer untuk data garansi kritis (Navbar)
+        // View Composer untuk data garansi kritis + notifikasi (Navbar)
         View::composer('layouts.app', function ($view) {
-            $garansiKritis = Product::where('is_active', 'active')
-                ->where('warranty_expiry_date', '>=', now())
-                ->where('warranty_expiry_date', '<=', now()->addDays(30))
+            $garansiKritis = Product::active()->warrantyCritical()
                 ->orderBy('warranty_expiry_date', 'asc')
                 ->limit(5)
                 ->get();
 
-            $jmlGaransiKritis = Product::where('is_active', 'active')
-                ->where('warranty_expiry_date', '>=', now())
-                ->where('warranty_expiry_date', '<=', now()->addDays(30))
-                ->count();
+            $jmlGaransiKritis = Product::active()->warrantyCritical()->count();
+
+            $unreadNotifications = collect();
+            $jmlNotifikasi = 0;
+
+            if (auth()->check()) {
+                $unreadNotifications = auth()->user()->unreadNotifications()->limit(5)->get();
+                $jmlNotifikasi = auth()->user()->unreadNotifications()->count();
+            }
 
             $view->with('garansiKritis', $garansiKritis)
-                 ->with('jmlGaransiKritis', $jmlGaransiKritis);
+                 ->with('jmlGaransiKritis', $jmlGaransiKritis)
+                 ->with('unreadNotifications', $unreadNotifications)
+                 ->with('jmlNotifikasi', $jmlNotifikasi);
         });
     }
 }

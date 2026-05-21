@@ -15,7 +15,7 @@
                         </ul>
                     </div>
                 @endif
-                <form action="{{ route('product.store') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('product.store') }}" method="POST" enctype="multipart/form-data" id="formProduct">
                     @csrf
                     
                     <div class="mb-3">
@@ -78,8 +78,7 @@
                                 id="inputHarga" 
                                 name="price_display" 
                                 class="form-control" 
-                                placeholder="Contoh: 1.000.000" 
-                                required>
+                                placeholder="Contoh: 1.000.000">
                             <input type="hidden" name="price" id="priceReal">
                         </div>
                     </div>
@@ -184,4 +183,26 @@
         </div>
     </div>
 </div>
+@push('scripts')
+<script>
+document.getElementById('formProduct').addEventListener('submit', function(e) {
+    const category = document.getElementById('category_select').value;
+    const division = document.getElementById('division_select').value;
+    const errors = [];
+
+    if (!category) errors.push('Kategori');
+    if (!division) errors.push('Divisi');
+
+    if (errors.length) {
+        e.preventDefault();
+        Swal.fire({
+            icon: 'warning',
+            title: 'Lengkapi Data',
+            text: 'Mohon pilih ' + errors.join(' & ') + ' terlebih dahulu!',
+            confirmButtonColor: '#3085d6'
+        });
+    }
+});
+</script>
+@endpush
 @endsection

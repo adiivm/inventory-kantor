@@ -116,6 +116,10 @@ $(function() {
             url: url,
             type: 'POST',
             data: $(this).serialize(),
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json'
+            },
             success: function() {
                 $('#modalSupplier').modal('hide');
                 Swal.fire({
@@ -129,7 +133,16 @@ $(function() {
                 });
             },
             error: function(xhr) {
-                Swal.fire('Gagal', xhr.responseJSON?.message || 'Terjadi kesalahan saat menyimpan data.', 'error');
+                console.log('Response status:', xhr.status);
+                console.log('Response text:', xhr.responseText.substring(0, 500));
+                let msg = 'Terjadi kesalahan saat menyimpan data.';
+                if (xhr.responseJSON?.errors) {
+                    const firstKey = Object.keys(xhr.responseJSON.errors)[0];
+                    msg = xhr.responseJSON.errors[firstKey][0];
+                } else if (xhr.responseJSON?.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                Swal.fire('Gagal', msg, 'error');
             }
         });
     });

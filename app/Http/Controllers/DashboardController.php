@@ -14,56 +14,46 @@ class DashboardController extends Controller
     {
         // 1. Total semua UNIT barang yang ada (menggunakan kolom stock)
         // Hanya hitung yang statusnya 'active' agar barang yang sudah terjual/buang tidak masuk aset gudang
-        $totalBarang = Product::where('is_active', 'active')->sum('stock');
+        $totalBarang = Product::active()->sum('stock');
 
         $totalUser = User::count();
         
         // 2. Menghitung JUMLAH JENIS BARANG yang stok totalnya (kolom stock) menipis (<= 5)
-        $stokMenipis = Product::where('is_active', 'active')
-            ->where('stock', '<=', 5)
-            ->where('stock', '>', 0)
-            ->count();
+        $stokMenipis = Product::active()->stockLow()->count();
 
         // 3. Total UNIT yang SIAP PAKAI (Ready)
-        $barangReady = Product::where('is_active', 'active')->where('condition', 'ready')->count();
+        $barangReady = Product::active()->condition('ready')->count();
 
         // 4. Total UNIT yang SEDANG SERVIS (Repair)
-        $barangServis = Product::where('is_active', 'active')->where('condition', 'repair')->count();
+        $barangServis = Product::active()->condition('repair')->count();
         
         // 5. Total UNIT yang RUSAK (Broken)
-        $barangRusak = Product::where('is_active', 'active')->where('condition', 'broken')->count();
+        $barangRusak = Product::active()->condition('broken')->count();
         
         // 6. Menghitung barang yang benar-benar HABIS (Total stoknya 0)
-        $stokHabis = Product::where('is_active', 'active')
-            ->where('stock', '<=', 0)
-            ->count();
+        $stokHabis = Product::active()->where('stock', '<=', 0)->count();
 
         // 7. Total asset yang di-ARCHIVE / TRASHED (non-active)
-        $barangArchive = Product::where('is_active', '!=', 'active')->count();
+        $barangArchive = Product::notActive()->count();
 
         // 8. Total NILAI ASSET (Harga x Stok untuk semua barang aktif)
-        $totalNilaiAsset = Product::where('is_active', 'active')
+        $totalNilaiAsset = Product::active()
             ->selectRaw('SUM(price * stock) as total')
             ->value('total') ?? 0;
 
         // 9. Data Grafik (Hanya barang aktif)
         $chartData = \App\Models\Category::withCount(['products' => function($query) {
-            $query->where('is_active', 'active');
+            $query->active();
         }])->get();
 
         $labels = $chartData->pluck('name'); 
         $data   = $chartData->pluck('products_count'); 
 
         // 10. Garansi Kritis (<= 30 hari)
-        $garansiKritis = Product::where('is_active', 'active')
-            ->where('warranty_expiry_date', '>=', now())
-            ->where('warranty_expiry_date', '<=', now()->addDays(30))
-            ->count();
+        $garansiKritis = Product::active()->warrantyCritical()->count();
 
         // 11. Garansi Expired
-        $garansiExpired = Product::where('is_active', 'active')
-            ->where('warranty_expiry_date', '<', now())
-            ->count();
+        $garansiExpired = Product::active()->warrantyExpired()->count();
 
         return view('dashboard', compact(
             'totalBarang', 'totalUser', 'stokMenipis', 'barangReady', 

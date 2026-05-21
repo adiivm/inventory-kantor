@@ -8,4 +8,9 @@ class Location extends Model
 {
     protected $table = 'locations'; 
     protected $fillable = ['name'];
+
+    public function products()
+    {
+        return $this->hasMany(\App\Models\Product::class);
+    }
 }
