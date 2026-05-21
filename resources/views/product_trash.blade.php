@@ -107,6 +107,55 @@
                     </div>
                 </div>
 
+                <div class="row g-2 mb-3">
+                    <div class="col-md-2 col-6">
+                        <select id="filter_category" class="form-select form-select-sm">
+                            <option value="">Semua Kategori</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_division" class="form-select form-select-sm">
+                            <option value="">Semua Divisi</option>
+                            @foreach($divisions as $div)
+                                <option value="{{ $div->id }}">{{ $div->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_held_by" class="form-select form-select-sm">
+                            <option value="">Semua Pemegang</option>
+                            @foreach($held_bies as $hb)
+                                <option value="{{ $hb->id }}">{{ $hb->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_location" class="form-select form-select-sm">
+                            <option value="">Semua Lokasi</option>
+                            @foreach($locations as $loc)
+                                <option value="{{ $loc->id }}">{{ $loc->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_condition" class="form-select form-select-sm">
+                            <option value="">Semua Kondisi</option>
+                            <option value="ready">Ready</option>
+                            <option value="repair">Servis</option>
+                            <option value="broken">Rusak</option>
+                            <option value="disposed">Dibuang</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <button id="btnReset" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="tableArchive" style="width:100%">
                         <thead class="table-light">
@@ -114,64 +163,11 @@
                                 <th width="25%">NAMA ASSETS</th>
                                 <th width="15%">STATUS KELUAR</th>
                                 <th width="25%">KETERANGAN LOG</th>
-                                <th width="15%">STATUS STOK</th>
+                                <th width="15%">KONDISI</th>
                                 <th width="20%" class="text-center">AKSI</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @foreach($barang as $b) 
-                            <tr>
-                                <td data-label="NAMA">
-                                    <strong class="d-block text-primary fs-6">{{ $b->name }}</strong>
-                                    <span class="badge bg-{{ $b->warranty_color }} shadow-sm">{{ $b->sku }}</span>
-                                </td>
-                                <td data-label="STATUS">
-                                    @if($b->is_active == 'jual')
-                                        <span class="badge bg-success px-3 py-2 shadow-sm"><i class="bi bi-cash-coin me-1"></i> TERJUAL</span>
-                                    @elseif($b->is_active == 'destroy')
-                                        <span class="badge bg-danger px-3 py-2 shadow-sm"><i class="bi bi-hammer me-1"></i> DIHANCURKAN</span>
-                                    @elseif($b->is_active == 'archive')
-                                        <span class="badge bg-secondary px-3 py-2 shadow-sm"><i class="bi bi-box-seam me-1"></i> DIARSIPKAN</span>
-                                    @else
-                                        <span class="badge bg-dark px-3 py-2 shadow-sm">{{ strtoupper($b->is_active) }}</span>
-                                    @endif
-                                </td>
-                                <td data-label="KETERANGAN">
-                                    <small class="text-muted text-wrap" style="max-width: 250px; display: inline-block;">
-                                        {{ $b->logs()->latest()->first()->description ?? 'Tidak ada catatan spesifik.' }}
-                                    </small>
-                                </td>
-                                <td data-label="KONDISI">
-                                    @php
-                                        $cond = strtolower($b->condition ?? 'ready');
-                                        $badgeClass = $cond == 'ready' ? 'bg-success' : ($cond == 'repair' ? 'bg-warning text-dark' : ($cond == 'broken' ? 'bg-danger' : 'bg-secondary'));
-                                        $condLabel = $cond == 'ready' ? 'Ready' : ($cond == 'repair' ? 'Servis' : ($cond == 'broken' ? 'Rusak' : 'Dibuang'));
-                                    @endphp
-                                    <span class="badge {{ $badgeClass }} fs-6">{{ $condLabel }}</span>
-                                </td>
-                                <td data-label="AKSI">
-                                    <div class="action-buttons-archive">
-                                        <button type="button" class="btn btn-sm btn-outline-info btn-detail" data-id="{{ $b->id }}" title="Detail">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-warning btn-logs" data-id="{{ $b->id }}" title="Log History">
-                                            <i class="bi bi-clock-history"></i>
-                                        </button>
-                                        
-                                        <button type="button" class="btn btn-sm btn-success btn-restore" data-id="{{ $b->id }}" title="Restore">
-                                            <i class="bi bi-arrow-counterclockwise"></i>
-                                        </button>
-
-                                        @can('admin-only')
-                                        <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="{{ $b->id }}" title="Hapus Permanen">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                        @endcan
-                                    </div>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -233,31 +229,63 @@
 
 @endsection
 
-@if(session('success'))
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: "{{ session('success') }}",
-                showConfirmButton: false,
-                timer: 2000
-            });
-        });
-    </script>
-@endif
-
 @push('scripts')
 <script>
+    @if(session('success'))
     $(document).ready(function() {
-        // 1. Inisialisasi DataTables Client-Side
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: {!! json_encode(session('success')) !!},
+            showConfirmButton: false,
+            timer: 2000
+        });
+    });
+    @endif
+
+    $(document).ready(function() {
+        // 1. Inisialisasi DataTables Server-Side
         var table = $('#tableArchive').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: "{{ route('product.trash') }}",
+                data: function(d) {
+                    d.category_id = $('#filter_category').val();
+                    d.division_id = $('#filter_division').val();
+                    d.held_by_id = $('#filter_held_by').val();
+                    d.location_id = $('#filter_location').val();
+                    d.condition = $('#filter_condition').val();
+                }
+            },
+            columns: [
+                { data: 'asset_name', name: 'name' },
+                { data: 'status_badge', name: 'is_active' },
+                { data: 'description', name: 'logs.description', orderable: false },
+                { data: 'condition_badge', name: 'condition' },
+                { data: 'action', name: 'action', orderable: false, searchable: false }
+            ],
+            createdRow: function(row, data, dataIndex) {
+                $(row).find('td:eq(0)').attr('data-label', 'NAMA ASSET');
+                $(row).find('td:eq(1)').attr('data-label', 'STATUS KELUAR');
+                $(row).find('td:eq(2)').attr('data-label', 'KETERANGAN');
+                $(row).find('td:eq(3)').attr('data-label', 'KONDISI');
+                $(row).find('td:eq(4)').attr('data-label', 'AKSI');
+            },
             language: {
                 search: "",
                 searchPlaceholder: "Cari arsip..."
             },
-            ordering: true,
-            // Opsional: urutkan dari yang terbaru di-arsip (asumsi id ada di kolom tertentu, misal tidak kita set dulu)
+            order: [[0, 'desc']]
+        });
+
+        $('#filter_category, #filter_division, #filter_held_by, #filter_location, #filter_condition').change(function(){
+            table.draw();
+        });
+
+        $('#btnReset').click(function() {
+            $('#filter_category, #filter_division, #filter_held_by, #filter_location, #filter_condition').val('');
+            table.draw();
         });
 
         // 2. Event Delegation: Tombol Detail

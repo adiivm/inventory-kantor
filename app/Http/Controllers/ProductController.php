@@ -49,8 +49,8 @@ class ProductController extends Controller
             $nextNumber = 1;
         }
         
-        // Format SKU global kontinyu (7 digit): IVM-0000001, IVM-0000002, dst
-        $autoSku = 'IVM-' . str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
+        // Format SKU global kontinyu (8 digit): IVM-00000001, IVM-00000002, dst
+        $autoSku = 'IVM-' . str_pad($nextNumber, 8, '0', STR_PAD_LEFT);
 
         // Kirim $product ke view
         return view('product_create', compact('categories', 'divisions', 'autoSku', 'product', 'held_bies','locations', 'suppliers'));
@@ -223,16 +223,11 @@ class ProductController extends Controller
     }
 
     public function update(Request $request, $id) {
-        $product = Product::with(['category', 'division', 'heldBy', 'location'])->findOrFail($id);
+        $product = Product::with(['category', 'division', 'heldBy', 'location', 'supplier'])->findOrFail($id);
         $this->authorize('update', $product);
-        
-        $oldData = $product->getOriginal();
-        $oldCategoryName = $product->category->name ?? '-';
-        $oldDivisionName = $product->division->name ?? '-';
-        $oldHeldByName   = $product->heldBy->name ?? '-';
-        $oldLocationName = $product->location->name ?? '-';
 
         $request->validate([
+            'sku' => 'required|unique:products,sku,' . $id,
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'name'  => 'required',
             'condition' => 'required|in:ready,repair,broken,disposed',
@@ -240,38 +235,89 @@ class ProductController extends Controller
             'purchase_date' => 'nullable|date',
         ]);
 
-$filename = $product->image;
-        
-        // Proses upload gambar dulu
+        $oldData = $product->getOriginal();
+
+        // Upload & kompresi gambar
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                try {
-                    $file->storeAs('products', $filename, 'public');
-                } catch (\Exception $e) {
-                    return back()->with('error', 'Gagal upload: ' . $e->getMessage());
+                $path = $file->storeAs('products', $filename, 'public');
+                if (!$path) {
+                    return back()->with('error', 'Gagal upload gambar');
+                }
+                // Kompresi jika > 500KB
+                $fullPath = storage_path('app/public/products/' . $filename);
+                if (file_exists($fullPath) && filesize($fullPath) > 512000) {
+                    try {
+                        $img = imagecreatefromstring(file_get_contents($fullPath));
+                        if ($img) {
+                            list($w, $h) = getimagesize($fullPath);
+                            $maxDim = 1920;
+                            if ($w > $maxDim || $h > $maxDim) {
+                                $ratio = min($maxDim / $w, $maxDim / $h);
+                                $newW = (int)($w * $ratio);
+                                $newH = (int)($h * $ratio);
+                                $thumb = imagecreatetruecolor($newW, $newH);
+                                imagecopyresampled($thumb, $img, 0, 0, 0, 0, $newW, $newH, $w, $h);
+                                imagejpeg($thumb, $fullPath, 85);
+                                imagedestroy($thumb);
+                            }
+                            imagedestroy($img);
+                        }
+                    } catch (\Exception $e) {
+                        // Abaikan jika gagal kompresi
+                    }
                 }
                 $product->images()->create([
                     'image_path' => $filename,
-                    'is_primary' => false 
+                    'is_primary' => false
                 ]);
             }
         }
 
-        // CEK PERUBAHAN SEBELUM UPDATE
-        $logDetails = [];
-        
-        // A. Condition
-        if (isset($oldData['condition']) && $oldData['condition'] != $request->condition) {
-            $conditionLabels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
-            $oldLabel = $conditionLabels[$oldData['condition']] ?? $oldData['condition'];
-            $newLabel = $conditionLabels[$request->condition] ?? $request->condition;
-            $logDetails[] = "Kondisi: ($oldLabel → $newLabel)";
+        // Kumpulkan semua ID relasi yang berubah untuk query batch
+        $changedRelasi = [];
+        $relasiFields = [
+            'category_id' => ['old' => $product->category->name ?? '-', 'model' => \App\Models\Category::class],
+            'division_id' => ['old' => $product->division->name ?? '-', 'model' => \App\Models\Division::class],
+            'location_id' => ['old' => $product->location->name ?? '-', 'model' => \App\Models\Location::class],
+            'held_by_id'  => ['old' => $product->heldBy->name ?? '-', 'model' => \App\Models\HeldBy::class],
+        ];
+        foreach ($relasiFields as $field => $info) {
+            if (isset($oldData[$field]) && $oldData[$field] != $request->$field) {
+                $changedRelasi[$field] = ['id' => $request->$field, 'old' => $info['old'], 'model' => $info['model']];
+            }
+        }
+        // Supplier (nullable)
+        $oldSupplierId = (int)($oldData['supplier_id'] ?? 0);
+        $newSupplierId = (int)($request->supplier_id ?? 0);
+        if ($oldSupplierId !== $newSupplierId) {
+            $changedRelasi['supplier_id'] = [
+                'id' => $newSupplierId,
+                'old' => $product->supplier->name ?? '-',
+                'model' => \App\Models\Supplier::class
+            ];
         }
 
-        // B. Data Teks
-        $textFields = ['name' => 'Nama', 'sku' => 'SKU'];
-        foreach ($textFields as $key => $label) {
+        // Query batch: ambil semua nama baru sekali
+        $newNames = [];
+        foreach ($changedRelasi as $field => $info) {
+            if (!empty($info['id'])) {
+                $newNames[$field] = $info['model']::find($info['id'])->name ?? '-';
+            } else {
+                $newNames[$field] = '(Tidak ada)';
+            }
+        }
+
+        // Bangun log details
+        $logDetails = [];
+
+        if (isset($oldData['condition']) && $oldData['condition'] != $request->condition) {
+            $labels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
+            $logDetails[] = "Kondisi: ({$labels[$oldData['condition']]} → {$labels[$request->condition]})";
+        }
+
+        foreach (['name' => 'Nama', 'sku' => 'SKU'] as $key => $label) {
             if (isset($oldData[$key]) && $oldData[$key] != $request->$key) {
                 $logDetails[] = "$label: ({$oldData[$key]} → {$request->$key})";
             }
@@ -280,178 +326,56 @@ $filename = $product->image;
             $logDetails[] = "Harga: ({$oldData['price']} → {$request->price})";
         }
 
-        // C. Relasi
-        if (isset($oldData['category_id']) && $oldData['category_id'] != $request->category_id) {
-            $newCat = \App\Models\Category::find($request->category_id)->name ?? '-';
-            $logDetails[] = "Kategori: ($oldCategoryName → $newCat)";
-        }
-        if (isset($oldData['division_id']) && $oldData['division_id'] != $request->division_id) {
-            $newDiv = \App\Models\Division::find($request->division_id)->name ?? '-';
-            $logDetails[] = "Divisi: ($oldDivisionName → $newDiv)";
-        }
-        if (isset($oldData['location_id']) && $oldData['location_id'] != $request->location_id) {
-            $newLoc = \App\Models\Location::find($request->location_id)->name ?? '-';
-            $logDetails[] = "Lokasi: ($oldLocationName → $newLoc)";
-        }
-        if (isset($oldData['held_by_id']) && $oldData['held_by_id'] != $request->held_by_id) {
-            $newHeld = \App\Models\HeldBy::find($request->held_by_id)->name ?? '-';
-            $logDetails[] = "Pemegang: ($oldHeldByName → $newHeld)";
-        }
-        
-        // Supplier
-        $oldSupplierId = isset($oldData['supplier_id']) ? (int)$oldData['supplier_id'] : null;
-        $newSupplierId = $request->supplier_id ? (int)$request->supplier_id : null;
-        
-        if ($oldSupplierId !== $newSupplierId) {
-            $oldSupplier = $oldSupplierId ? (\App\Models\Supplier::find($oldSupplierId)->name ?? '-') : '(Tidak ada)';
-            $newSupplier = $newSupplierId ? (\App\Models\Supplier::find($newSupplierId)->name ?? '-') : '(Tidak ada)';
-            $logDetails[] = "Supplier: $oldSupplier → $newSupplier";
+        foreach ($changedRelasi as $field => $info) {
+            $logDetails[] = match($field) {
+                'category_id' => "Kategori: ({$info['old']} → {$newNames[$field]})",
+                'division_id' => "Divisi: ({$info['old']} → {$newNames[$field]})",
+                'location_id' => "Lokasi: ({$info['old']} → {$newNames[$field]})",
+                'held_by_id'  => "Pemegang: ({$info['old']} → {$newNames[$field]})",
+                'supplier_id' => "Supplier: ({$info['old']} → {$newNames[$field]})",
+                default => ''
+            };
         }
 
-        // Tgl Beli
-        if (isset($oldData['purchase_date'])) {
-            $oldDate = $oldData['purchase_date'] ? \Carbon\Carbon::parse($oldData['purchase_date'])->format('Y-m-d') : null;
-            $newDate = $request->purchase_date ? \Carbon\Carbon::parse($request->purchase_date)->format('Y-m-d') : null;
-            if ($oldDate !== $newDate) {
-                $oldP = \Carbon\Carbon::parse($oldData['purchase_date'])->format('d-m-Y');
-                $newP = \Carbon\Carbon::parse($request->purchase_date)->format('d-m-Y');
-                $logDetails[] = "Tgl Beli: ($oldP → $newP)";
+        // Tgl Beli & Garansi
+        $dateFields = [
+            'purchase_date' => 'Tgl Beli',
+            'warranty_expiry_date' => 'Garansi'
+        ];
+        foreach ($dateFields as $field => $label) {
+            $oldVal = !empty($oldData[$field]) ? \Carbon\Carbon::parse($oldData[$field])->format('d-m-Y') : '-';
+            $newVal = $request->$field ? \Carbon\Carbon::parse($request->$field)->format('d-m-Y') : '-';
+            if ($oldVal !== $newVal) {
+                $logDetails[] = "$label: ($oldVal → $newVal)";
             }
         }
 
-        // Garansi
-        if (isset($oldData['warranty_expiry_date'])) {
-            $oldDate = $oldData['warranty_expiry_date'] ? \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('Y-m-d') : null;
-            $newDate = $request->warranty_expiry_date ? \Carbon\Carbon::parse($request->warranty_expiry_date)->format('Y-m-d') : null;
-            if ($oldDate !== $newDate) {
-                $oldW = \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('d-m-Y');
-                $newW = \Carbon\Carbon::parse($request->warranty_expiry_date)->format('d-m-Y');
-                $logDetails[] = "Garansi: ($oldW → $newW)";
-            }
-        }
-
-        // Tambah log jika ada foto baru
         if ($request->hasFile('images')) {
             $logDetails[] = "Menambahkan " . count($request->file('images')) . " foto baru";
         }
 
-        // Update Database
+        // Update Database (1 query)
         $product->update([
-            'sku' => $request->sku, 'name' => $request->name, 'image' => $filename,
+            'sku' => $request->sku, 'name' => $request->name,
             'category_id' => $request->category_id, 'division_id' => $request->division_id,
             'stock' => 1,
             'condition' => $request->condition,
-            'price' => $request->price, 'held_by_id' => $request->held_by_id,       
+            'price' => $request->price, 'held_by_id' => $request->held_by_id,
             'location_id' => $request->location_id, 'usage_type' => $request->usage_type,
             'purchase_date' => $request->purchase_date,
             'warranty_expiry_date' => $request->warranty_expiry_date,
             'supplier_id' => $request->supplier_id,
         ]);
 
-        // CEK PERUBAHAN SEBELUM UPDATE
-        $logDetails = [];
-        
-        // A. Condition
-        if (isset($oldData['condition']) && $oldData['condition'] != $request->condition) {
-            $conditionLabels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
-            $oldLabel = $conditionLabels[$oldData['condition']] ?? $oldData['condition'];
-            $newLabel = $conditionLabels[$request->condition] ?? $request->condition;
-            $logDetails[] = "Kondisi: ($oldLabel → $newLabel)";
-        }
-
-        // B. Data Teks (Lama -> Baru)
-        $textFields = ['name' => 'Nama', 'sku' => 'SKU'];
-        foreach ($textFields as $key => $label) {
-            if (isset($oldData[$key]) && $oldData[$key] != $request->$key) {
-                $logDetails[] = "$label: ({$oldData[$key]} → {$request->$key})";
-            }
-        }
-        // Price comparison (handle number vs string)
-        if (isset($oldData['price']) && (int)$oldData['price'] != (int)$request->price) {
-            $logDetails[] = "Harga: ({$oldData['price']} → {$request->price})";
-        }
-
-        // C. Relasi (Nama Lama -> Nama Baru)
-        if (isset($oldData['category_id']) && $oldData['category_id'] != $request->category_id) {
-            $newCat = \App\Models\Category::find($request->category_id)->name ?? '-';
-            $logDetails[] = "Kategori: ($oldCategoryName → $newCat)";
-        }
-        if (isset($oldData['division_id']) && $oldData['division_id'] != $request->division_id) {
-            $newDiv = \App\Models\Division::find($request->division_id)->name ?? '-';
-            $logDetails[] = "Divisi: ($oldDivisionName → $newDiv)";
-        }
-        if (isset($oldData['location_id']) && $oldData['location_id'] != $request->location_id) {
-            $newLoc = \App\Models\Location::find($request->location_id)->name ?? '-';
-            $logDetails[] = "Lokasi: ($oldLocationName → $newLoc)";
-        }
-        if (isset($oldData['held_by_id']) && $oldData['held_by_id'] != $request->held_by_id) {
-            $newHeld = \App\Models\HeldBy::find($request->held_by_id)->name ?? '-';
-            $logDetails[] = "Pemegang: ($oldHeldByName → $newHeld)";
-        }
-        
-        // Supplier
-        $oldSupplierId = isset($oldData['supplier_id']) ? (int)$oldData['supplier_id'] : null;
-        $newSupplierId = $request->supplier_id ? (int)$request->supplier_id : null;
-        if ($oldSupplierId !== $newSupplierId) {
-            $oldSupplier = $oldSupplierId ? (\App\Models\Supplier::find($oldSupplierId)->name ?? '-') : '(Tidak ada)';
-            $newSupplier = $newSupplierId ? (\App\Models\Supplier::find($newSupplierId)->name ?? '-') : '(Tidak ada)';
-            $logDetails[] = "Supplier: $oldSupplier → $newSupplier";
-        }
-
-        // Tgl Beli - parsing karena oldData bisa berupa ISO string
-        if (!empty($oldData['purchase_date'])) {
-            $oldDateVal = \Carbon\Carbon::parse($oldData['purchase_date'])->format('Y-m-d');
-        } else {
-            $oldDateVal = null;
-        }
-        $newDateVal = $request->purchase_date ? \Carbon\Carbon::parse($request->purchase_date)->format('Y-m-d') : null;
-        
-        if ($oldDateVal !== $newDateVal) {
-            $oldP = !empty($oldDateVal) ? \Carbon\Carbon::parse($oldDateVal)->format('d-m-Y') : '-';
-            $newP = !empty($newDateVal) ? \Carbon\Carbon::parse($newDateVal)->format('d-m-Y') : '-';
-            $logDetails[] = "Tgl Beli: ($oldP → $newP)";
-        }
-
-        // Garansi
-        if (!empty($oldData['warranty_expiry_date'])) {
-            $oldWarrantyVal = \Carbon\Carbon::parse($oldData['warranty_expiry_date'])->format('Y-m-d');
-        } else {
-            $oldWarrantyVal = null;
-        }
-        $newWarrantyVal = $request->warranty_expiry_date ? \Carbon\Carbon::parse($request->warranty_expiry_date)->format('Y-m-d') : null;
-        
-        if ($oldWarrantyVal !== $newWarrantyVal) {
-            $oldW = !empty($oldWarrantyVal) ? \Carbon\Carbon::parse($oldWarrantyVal)->format('d-m-Y') : '-';
-            $newW = !empty($newWarrantyVal) ? \Carbon\Carbon::parse($newWarrantyVal)->format('d-m-Y') : '-';
-            $logDetails[] = "Garansi: ($oldW → $newW)";
-        }
-
-        // Tambah log jika ada foto baru
-        if ($request->hasFile('images')) {
-            $logDetails[] = "Menambahkan " . count($request->file('images')) . " foto baru";
-        }
-
-        // Update Database
-        $product->update([
-            'sku' => $request->sku, 'name' => $request->name, 'image' => $filename,
-            'category_id' => $request->category_id, 'division_id' => $request->division_id,
-            'stock' => 1,
-            'condition' => $request->condition,
-            'price' => $request->price, 'held_by_id' => $request->held_by_id,       
-            'location_id' => $request->location_id, 'usage_type' => $request->usage_type,
-            'purchase_date' => $request->purchase_date,
-            'warranty_expiry_date' => $request->warranty_expiry_date,
-        ]);
-
+        // Log (1 query)
         $description = count($logDetails) > 0 ? implode(' | ', $logDetails) : "Update info tanpa perubahan data";
-
         ProductLog::create([
             'product_id' => $product->id,
             'action' => 'UPDATE',
             'description' => $description,
             'old_stock' => $oldData['stock'],
-            'new_stock' => 1, // Stock selalu 1 karena 1 SKU = 1 item
-            'user_name' => auth()->user()->name ?? 'Admin', 
+            'new_stock' => 1,
+            'user_name' => auth()->user()->name ?? 'Admin',
         ]);
 
         return redirect('/products')->with('success', 'Data dan riwayat berhasil diperbarui!');
@@ -466,21 +390,28 @@ $filename = $product->image;
 
         // 2. Jika request datang dari DataTables (AJAX)
         if ($request->ajax()) {
-            // --- MODIFIKASI: Tambahkan 'latestAudit' di dalam with() ---
-            $query = \App\Models\Product::with(['category', 'division', 'heldBy', 'location', 'images', 'latestAudit'])
-                    ->where('is_active', 'active')
-                    ->orderBy('sku', 'desc');
+            // --- MODIFIKASI: Tambahkan 'latestAudit', 'supplier' di dalam with() ---
+            $query = \App\Models\Product::with(['category', 'division', 'heldBy', 'location', 'images', 'latestAudit', 'supplier'])
+                    ->where('is_active', 'active');
 
-            // --- Filter Dashboard (Tetap Sama) ---
-            if ($request->filter == 'stok_menipis') {
-                $query->where('stock', '<=', 5)->where('stock', '>', 0);
-            } elseif ($request->filter == 'repairing') {
-                $query->where('stock_repair', '>', 0);
-            } elseif ($request->filter == 'stok_habis') {
-                $query->where('stock', '<=', 0);
+            // --- Search Multi-Field (DataTables search + search_sku) ---
+            $searchValue = $request->input('search.value');
+            if ($request->has('search_sku') && $request->search_sku != '') {
+                $query->where('sku', $request->search_sku);
+            } elseif (!empty($searchValue)) {
+                $query->where(function($q) use ($searchValue) {
+                    $q->where('sku', 'ILIKE', "%{$searchValue}%")
+                      ->orWhere('name', 'ILIKE', "%{$searchValue}%")
+                      ->orWhereHas('category', fn($cq) => $cq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('division', fn($dq) => $dq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('heldBy', fn($hq) => $hq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('location', fn($lq) => $lq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('supplier', fn($sq) => $sq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhere('condition', 'ILIKE', "%{$searchValue}%");
+                });
             }
 
-            // --- Filter Dropdown (Tetap Sama) ---
+            // --- Filter Dropdown ---
             if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
             if ($request->filled('division_id')) { $query->where('division_id', $request->division_id); }
             if ($request->filled('held_by_id')) { $query->where('held_by_id', $request->held_by_id); }
@@ -505,11 +436,6 @@ $filename = $product->image;
             } elseif ($warranty_status == 'expired') {
                 $query->whereNotNull('warranty_expiry_date')
                       ->whereDate('warranty_expiry_date', '<', $today);
-            }
-
-            // --- Filter Search SKU (dari klik lonceng) ---
-            if ($request->has('search_sku') && $request->search_sku != '') {
-                $query->where('sku', $request->search_sku);
             }
 
             return Datatables::of($query)
@@ -696,13 +622,88 @@ $filename = $product->image;
         return redirect()->route('product.index')->with('success', 'Barang berhasil dipindahkan ke Gudang Archive!');
     }
 
-    public function trash() {
-        $barang = \App\Models\Product::with(['category', 'division', 'logs'])
-                    ->where('is_active', '!=', 'active') 
-                    ->latest()
-                    ->get();
+    public function trash(Request $request) {
+        if ($request->ajax()) {
+            $query = \App\Models\Product::with(['category', 'division', 'logs', 'heldBy', 'location', 'supplier', 'latestAudit'])
+                    ->where('is_active', '!=', 'active');
 
-        return view('product_trash', compact('barang'));
+            $searchValue = $request->input('search.value');
+            if (!empty($searchValue)) {
+                $query->where(function($q) use ($searchValue) {
+                    $q->where('name', 'ILIKE', "%{$searchValue}%")
+                      ->orWhere('sku', 'ILIKE', "%{$searchValue}%")
+                      ->orWhereHas('category', fn($cq) => $cq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('division', fn($dq) => $dq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('heldBy', fn($hq) => $hq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('location', fn($lq) => $lq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhereHas('supplier', fn($sq) => $sq->where('name', 'ILIKE', "%{$searchValue}%"))
+                      ->orWhere('condition', 'ILIKE', "%{$searchValue}%")
+                      ->orWhere('is_active', 'ILIKE', "%{$searchValue}%");
+                });
+            }
+
+            if ($request->filled('category_id')) { $query->where('category_id', $request->category_id); }
+            if ($request->filled('division_id')) { $query->where('division_id', $request->division_id); }
+            if ($request->filled('held_by_id')) { $query->where('held_by_id', $request->held_by_id); }
+            if ($request->filled('location_id')) { $query->where('location_id', $request->location_id); }
+            if ($request->filled('condition')) { $query->where('condition', $request->condition); }
+            if ($request->filled('is_active_status')) { $query->where('is_active', $request->is_active_status); }
+
+            return Datatables::of($query)
+                ->addIndexColumn()
+                ->addColumn('asset_name', function($row) {
+                    return '
+                        <strong class="d-block text-primary fs-6">' . $row->name . '</strong>
+                        <span class="badge bg-' . $row->warranty_color . ' shadow-sm">' . $row->sku . '</span>';
+                })
+                ->addColumn('status_badge', function($row) {
+                    $icons = ['jual' => 'cash-coin', 'destroy' => 'hammer', 'archive' => 'box-seam'];
+                    $classes = ['jual' => 'bg-success', 'destroy' => 'bg-danger', 'archive' => 'bg-secondary'];
+                    $label = strtoupper($row->is_active);
+                    $icon = $icons[$row->is_active] ?? 'archive';
+                    $class = $classes[$row->is_active] ?? 'bg-dark';
+                    return '<span class="badge ' . $class . ' px-3 py-2 shadow-sm"><i class="bi bi-' . $icon . ' me-1"></i> ' . $label . '</span>';
+                })
+                ->addColumn('description', function($row) {
+                    $desc = $row->logs()->latest()->first()->description ?? 'Tidak ada catatan spesifik.';
+                    return '<small class="text-muted text-wrap">' . e($desc) . '</small>';
+                })
+                ->addColumn('condition_badge', function($row) {
+                    $cond = strtolower($row->condition ?? 'ready');
+                    $classes = ['ready' => 'bg-success', 'repair' => 'bg-warning text-dark', 'broken' => 'bg-danger', 'disposed' => 'bg-secondary'];
+                    $labels = ['ready' => 'Ready', 'repair' => 'Servis', 'broken' => 'Rusak', 'disposed' => 'Dibuang'];
+                    $class = $classes[$cond] ?? 'bg-secondary';
+                    $label = $labels[$cond] ?? ucfirst($cond);
+                    return '<span class="badge ' . $class . ' fs-6">' . $label . '</span>';
+                })
+                ->addColumn('action', function($row) {
+                    $deleteBtn = auth()->user() && strtolower(auth()->user()->role) === 'admin' ? '
+                        <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="'.$row->id.'" title="Hapus Permanen">
+                            <i class="bi bi-trash"></i>
+                        </button>' : '';
+                    return '<div class="action-buttons-archive">
+                        <button type="button" class="btn btn-sm btn-outline-info btn-detail" data-id="'.$row->id.'" title="Detail">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning btn-logs" data-id="'.$row->id.'" title="Log History">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success btn-restore" data-id="'.$row->id.'" title="Restore">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                        ' . $deleteBtn . '
+                    </div>';
+                })
+                ->rawColumns(['asset_name', 'status_badge', 'description', 'condition_badge', 'action'])
+                ->make(true);
+        }
+
+        $categories = \App\Models\Category::orderBy('name')->get();
+        $divisions = \App\Models\Division::orderBy('name')->get();
+        $held_bies = \App\Models\HeldBy::orderBy('name')->get();
+        $locations = \App\Models\Location::orderBy('name')->get();
+
+        return view('product_trash', compact('categories', 'divisions', 'held_bies', 'locations'));
     }
 
     public function restore($id) {

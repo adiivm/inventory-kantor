@@ -38,8 +38,8 @@ class DashboardController extends Controller
             ->where('stock', '<=', 0)
             ->count();
 
-        // 7. Total asset yang di-ARCHIVE (Disposed)
-        $barangArchive = Product::where('is_active', 'archive')->sum('stock');
+        // 7. Total asset yang di-ARCHIVE / TRASHED (non-active)
+        $barangArchive = Product::where('is_active', '!=', 'active')->count();
 
         // 8. Total NILAI ASSET (Harga x Stok untuk semua barang aktif)
         $totalNilaiAsset = Product::where('is_active', 'active')

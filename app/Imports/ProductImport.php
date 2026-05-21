@@ -101,12 +101,12 @@ class ProductImport implements ToModel, WithHeadingRow
     {
         $lastProduct = Product::orderBy('id', 'desc')->first();
         if (!$lastProduct) {
-            return 'IVM-0000001';
+            return 'IVM-00000001';
         }
         
         $parts = explode('-', $lastProduct->sku);
         $nextNumber = ((int)end($parts)) + 1;
-        return 'IVM-' . str_pad($nextNumber, 7, '0', STR_PAD_LEFT);
+        return 'IVM-' . str_pad($nextNumber, 8, '0', STR_PAD_LEFT);
     }
 
     private function parseDate($date)

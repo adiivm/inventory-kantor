@@ -1,0 +1,221 @@
+# Inventory Kantor
+
+Aplikasi inventaris kantor berbasis Laravel dengan Docker.
+
+## Tech Stack
+- Laravel 12
+- PHP 8.4
+- PostgreSQL 15
+- Apache
+- Bootstrap 5
+- Yajra DataTables
+
+## Cara Menjalankan Server
+
+### Start server (setiap pagi)
+```bash
+cd /home/it-adi/ProyekAssets/inventory-kantor
+docker compose up -d
+```
+
+### Stop server
+```bash
+docker compose down
+```
+
+### Restart server (jika ada masalah)
+```bash
+docker compose restart
+```
+
+### Melihat logs
+```bash
+docker compose logs -f
+```
+
+### Cek status
+```bash
+docker ps
+```
+
+### Jika database reset (data hilang)
+Ini terjadi karena volume PostgreSQL dihapus saat container di-stop. Untuk mencegahnya:
+
+1. Pastikan tidak menjalankan `docker compose down -v` (yang `-v` menghapus volumes)
+2. Data akan bertahan selama tidak menghapus container/volume
+
+Untuk backup manual:
+```bash
+# Export database
+docker exec inventory-postgres pg_dump -U inventory_user inventory_kantor > backup.sql
+
+# Import database
+docker exec -T inventory-postgres psql -U inventory_user inventory_kantor < backup.sql
+```
+
+## Akses
+- Web: http://localhost:8080
+- Akses dari HP (sejaringan): http://172.17.7.70:8080
+
+## Login
+- Email: admin@test.com
+- Password: 123456
+
+## Database
+- PostgreSQL port: 5433
+- Konfigurasi ada di .env
+
+## Image Storage
+- Lokasi: /mnt/DATA/imagepublic
+- Folder: photos, products, audit
+
+## Cara Menggunakan
+
+### Menu Utama
+- **Dashboard** - Halaman utama menampilkan statistik inventaris
+- **Produk** - Kelola data produk inventaris
+- **Kategori** - Kelola kategori produk
+- **Divisi** - Kelola divisi departemen
+- **Lokasi** - Kelola lokasi penyimpanan
+- **User** - Kelola pengguna sistem
+- **Laporan** - Export data ke Excel
+- **Audit** - Pencatatan inventaris
+- **Profile** - Ubah profil & password
+
+### Fitur Produk
+- Tambah produk baru dengan foto
+- Edit detail produk
+- Hapus (pindah ke trash)
+- Restore produk yang dihapus
+- Arsip produk
+- Tambah/edit hapus foto produk
+- Cetak label barcode (PDF)
+- **Import Excel** - Import banyak produk dari file Excel
+- **Bulk Print Labels** - Cetak QR Code massal untuk banyak produk
+
+### Cara Import Produk dari Excel
+1. Klik menu **Produk**
+2. Klik tombol **Import Excel** (icon upload)
+3. Unduh template terlebih dahulu
+4. Isi data sesuai format template
+5. Upload file Excel (.xlsx, .xls, .csv)
+6. Klik **Import Data**
+
+**Kolom yang didukung:**
+- sku, name, category/kategori, division/divisi, held_by/pemegang
+- location/lokasi, supplier, condition/kondisi, price/harga
+- purchase_date/tanggal_beli, warranty_expiry_date/garansi
+
+### Cara Bulk Print QR Labels
+1. Di halaman **Produk**, centang produk yang ingin dicetak
+2. Klik tombol **Print Massal** (icon printer)
+3. Sistem membuka halaman print dengan QR Code
+4. Cetak menggunakan printer thermal 70mm x 35mm
+
+### Cara Filter Garansi
+Dashboard memiliki card khusus untuk tracking garansi:
+- **Garansi Kritis** - Produk dengan garansi ≤ 30 hari
+- **Garansi Expired** - Produk dengan garansi sudah habis
+
+Klik card tersebut untuk melihat daftar produk yang garansinya kritis/expired.
+
+### Cara Input Produk Baru
+1. Klik menu **Produk**
+2. Klik tombol **+ Tambah**
+3. Isi data: Nama, SKU, Kategori, Kondisi, Jumlah, Divisi, Lokasi
+4. Upload foto produk (opsional)
+5. Klik **Simpan**
+
+### Cara Audit Inventaris
+1. Scan QR Code pada label produk menggunakan HP
+2. Atau akses langsung: `/audit/direct/{sku}`
+3. Sistem menampilkan data produk
+4. Isi auditor, kondisi, dan upload foto bukti
+5. Klik **Submit Audit**
+
+### Cara Export Laporan
+1. Klik menu **Laporan**
+2. Filter berdasarkan tanggal/kategori/divisi
+3. Klik **Export Excel**
+
+### Soft Delete (Arsip)
+- Produk yang dihapus tidak langsung hilang, dipindahkan ke trash
+- Klik **Trash** untuk melihat produk yang dihapus
+- Produk di trash bisa di-**restore** (kembalikan)
+- Klik **Hapus Permanen** untuk menghapus definitif
+- Klik **Arsip** untuk menyimpan ke arsip (tidak muncul di list utama)
+
+### Status Produk
+Setiap produk memiliki status kondisi:
+- **Ready** - barang siap pakai
+- **Repair** - sedang diperbaiki/servis
+- **Broken** - rusak/tidak bisa digunakan
+
+## Fitur Tambahan
+
+### Dashboard Analytics
+- **Total Aset** - Jumlah seluruh produk
+- **Kondisi Baik** - Produk dengan status ready
+- **Perbaikan/Rusak** - Produk yang butuh perhatian
+- **Aset Archive** - Produk yang diarsipkan
+- **Garansi Kritis** - Produk garansi ≤ 30 hari
+- **Garansi Expired** - Produk garansi sudah habis
+
+### Notifikasi Navbar
+- Icon lonceng di navbar menampilkan jumlah garansi kritis
+- Klik lonceng untuk melihat detail 5 produk teratas
+- Setiap item显示 sisa hari garansi
+
+### Badge Warna SKU
+Di tabel produk, SKU menampilkan badge warna berdasarkan garansi:
+- **Hijau** - Garansi masih lama (>30 hari)
+- **Kuning** - Garansi kritis (≤30 hari)
+- **Abu-abu** - Garansi habis atau tidak ada
+
+### Filter URL
+Semua filter di dashboard dapat diakses langsung via URL:
+- `?condition=ready` - Filter kondisi baik
+- `?condition=repair` - Filter repair/broken
+- `?warranty_status=critical` - Filter garansi kritis
+- `?warranty_status=expired` - Filter garansi expired
+- `?search_sku=IVM-xxxxxxx` - Filter SKU tertentu
+
+### Menu Suppliers
+Kelola data supplier/pemasok barang:
+- Tambah supplier baru
+- Edit data supplier
+- Hapus supplier (soft delete)
+- Saat import Excel, supplier baru otomatis dibuat jika belum ada
+
+### Menu User Management (Admin only)
+Kelola pengguna sistem:
+- Tambah user baru
+- Edit data user (nama, email, role)
+- Reset password
+- Hapus user
+
+### Role Pengguna
+- **Admin** - Akses penuh ke semua fitur termasuk user management
+- **Staff** - Hanya bisa lihat, tambah, dan edit produk (tidak bisa hapus user)
+
+### Menu Laporan
+Fitur export data untuk reporting:
+- Filter berdasarkan: Tanggal, Kategori, Divisi, Kondisi, Lokasi
+- Export ke Excel
+- Kolom yang diexport bisa dipilih sesuaikebutuhan
+
+### Menu Archive/Trash
+- **Trash** - Produk yang dihapus (soft delete), bisa restore
+- **Arsip** - Produk yang diarsipkan, tidak muncul di list utama tapi masih tersimpan
+
+### Download Template Import
+Sebelum import Excel, bisa download template kosong:
+1. Klik **Import Excel**
+2. Klik **Unduh Template**
+3. Template akan terdownload dengan header kolom yang benar
+
+### Cara Akses dari HP
+1. Pastikan HP dan komputer server在同一网络 (sejaringan)
+2. Buka browser HP, akses: `http://172.17.7.70:8080`
+3. Login seperti biasa
+4. Dashboard dan fitur sudah responsif untuk layar HP

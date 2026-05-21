@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>if(typeof Swal==='undefined'){window.Swal={fire:alert,mixin:()=>({fire:alert})}}</script>
     
     <style>
         /* --- Tambahan untuk Fitur Hide/Toggle --- */
@@ -511,7 +513,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -677,7 +678,6 @@
             printWindow.document.close();
         }
 
-        // PINDAHKAN INI KE ATAS (SEBELUM fungsi handleAjaxSave)
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',

@@ -101,6 +101,54 @@
                     </div>
                 </div>
 
+                <div class="row g-2 mb-3">
+                    <div class="col-md-2 col-6">
+                        <select id="filter_category" class="form-select form-select-sm">
+                            <option value="">Semua Kategori</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_division" class="form-select form-select-sm">
+                            <option value="">Semua Divisi</option>
+                            @foreach($divisions as $div)
+                                <option value="{{ $div->id }}">{{ $div->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_held_by" class="form-select form-select-sm">
+                            <option value="">Semua Pemegang</option>
+                            @foreach($held_bies as $hb)
+                                <option value="{{ $hb->id }}">{{ $hb->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_location" class="form-select form-select-sm">
+                            <option value="">Semua Lokasi</option>
+                            @foreach($locations as $loc)
+                                <option value="{{ $loc->id }}">{{ $loc->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <select id="filter_condition" class="form-select form-select-sm">
+                            <option value="">Semua Kondisi</option>
+                            <option value="ready">Ready</option>
+                            <option value="repair">Servis</option>
+                            <option value="broken">Rusak</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <button id="btnReset" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="tableProduct" style="width:100%">
                         <thead class="table-light">
@@ -244,31 +292,28 @@
 
 @endsection
 
-@if(session('success'))
-    <script>
-        Swal.fire({
-            icon: 'success',
-            title: 'Berhasil!',
-            text: "{{ session('success') }}",
-            showConfirmButton: false,
-            timer: 4000
-        });
-    </script>
-@endif
-
-@if(session('error'))
-    <script>
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal!',
-            text: "{{ session('error') }}",
-            showConfirmButton: true,
-            timer: 5000
-        });
-    </script>
-@endif
-
 @push('scripts')
+<script>
+    @if(session('success'))
+    Swal.fire({
+        icon: 'success',
+        title: 'Berhasil!',
+        text: {!! json_encode(session('success')) !!},
+        showConfirmButton: false,
+        timer: 4000
+    });
+    @endif
+
+    @if(session('error'))
+    Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: {!! json_encode(session('error')) !!},
+        showConfirmButton: true,
+        timer: 5000
+    });
+    @endif
+</script>
 <script>
     $(document).ready(function() {
         // AJAX Import Excel
@@ -333,6 +378,7 @@
                     d.category_id = $('#filter_category').val();
                     d.division_id = $('#filter_division').val();
                     d.held_by_id = $('#filter_held_by').val();
+                    d.location_id = $('#filter_location').val();
                 }
             },
             columns: [
@@ -375,7 +421,7 @@
         });
 
         // 2. Fungsi Filter (Tetap Aktif)
-        $('#filter_category, #filter_division, #filter_held_by, #filter_condition').change(function(){
+        $('#filter_category, #filter_division, #filter_held_by, #filter_location, #filter_condition').change(function(){
             table.draw();
         });
 
