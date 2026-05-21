@@ -219,3 +219,33 @@ Sebelum import Excel, bisa download template kosong:
 2. Buka browser HP, akses: `http://172.17.7.70:8080`
 3. Login seperti biasa
 4. Dashboard dan fitur sudah responsif untuk layar HP
+
+## Changelog
+
+### 2026-05-21
+- **SKU Format**: Semua SKU diubah menjadi 8 digit (`IVM-00000001` s.d. `IVM-00000032`) dan berurutan berdasarkan ID
+- **SKU Generate**: Auto-generate SKU di create & import menggunakan format 8 digit
+- **Unique Constraints**: Menambahkan UNIQUE constraint ke `categories.name`, `divisions.name`, `suppliers.name`
+- **Data Duplikat Dibersihkan**: 5 duplikat kategori & 5 duplikat divisi digabung
+- **ProductController@update**: 
+  - Validasi unique SKU ditambahkan
+  - Duplicate code block (update 2x per request) dihapus
+  - Optimasi: kompresi gambar otomatis (max 1920px, >500KB dikompres)
+  - Batch query relasi (kurangi N+1 query)
+- **Export Excel**: 
+  - Filter: kategori, divisi, lokasi, kondisi, range tanggal beli
+  - Pilihan status: Active Only / All / Archive Only
+  - Kolom `is_active` (Status) ditambahkan
+  - Label header konsisten English
+  - `FromCollection` → `FromQuery` + chunk 500 untuk performa
+  - Filter `is_active = active` otomatis (kecuali pilih All/Archive)
+- **Search**: 
+  - Search multi-field (sku, name, category, division, held_by, location, supplier, condition)
+  - Case-insensitive (`ILIKE`)
+  - Filter dropdown di halaman Products (Kategori, Divisi, Pemegang, Lokasi, Kondisi)
+  - Filter dropdown di halaman Archive (sama)
+  - Archive page: client-side → server-side DataTables
+- **SweetAlert2**: Dipindah ke `<head>` + fallback jika CDN gagal
+- **Notifikasi Session**: Success/error alert dipindah ke `@push('scripts')` agar tampil
+- **Dashboard**: Card "Aset Archive" sekarang menghitung semua non-aktif (`!= 'active'`), bukan hanya `archive`
+- **SoftDelete Import**: Hapus `use SoftDeletes` (tidak dipakai)
