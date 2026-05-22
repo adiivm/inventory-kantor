@@ -11,7 +11,7 @@
             <div class="card p-4 border-0 shadow">
                 <h3 class="mb-4 text-center fw-bold text-warning">Edit Data Barang</h3>
                 
-                <form action="/product/update/{{ $product->id }}" method="POST" enctype="multipart/form-data">
+                <form action="/product/update/{{ $product->id }}" method="POST" enctype="multipart/form-data" id="formProduct">
                     @csrf
                     @method('PUT') 
                     
@@ -21,8 +21,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Nama Barang</label>
-                        <input type="text" name="name" class="form-control" value="{{ $product->name }}" required>
+                        <label class="form-label fw-bold">Nama Barang <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" value="{{ $product->name }}">
                     </div>
 
                     <div class="mb-3">
@@ -57,7 +57,7 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold">Kategori</label>
+                            <label class="fw-bold">Kategori <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select name="category_id" id="category_select" class="form-select">
                                     <option value="">-- Pilih Kategori --</option>
@@ -72,7 +72,7 @@
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold">Divisi</label>
+                            <label class="fw-bold">Divisi <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select name="division_id" id="division_select" class="form-select">
                                     <option value="">-- Pilih Divisi --</option>
@@ -200,4 +200,35 @@
 </div>
 
 
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+document.getElementById('formProduct').addEventListener('submit', function(e) {
+    const name = document.querySelector('input[name="name"]').value.trim();
+    const category = document.getElementById('category_select').value;
+    const division = document.getElementById('division_select').value;
+    const errors = [];
+    const fields = [];
+
+    if (!name) { errors.push('Nama Barang'); fields.push('name'); }
+    if (!category) { errors.push('Kategori'); fields.push('category'); }
+    if (!division) { errors.push('Divisi'); fields.push('division'); }
+
+    if (errors.length) {
+        e.preventDefault();
+        const first = fields[0];
+        if (first === 'name') document.querySelector('input[name="name"]').focus();
+        else if (first === 'category') document.getElementById('category_select').focus();
+        else document.getElementById('division_select').focus();
+        Swal.fire({
+            icon: 'warning',
+            title: 'Lengkapi Data',
+            text: 'Mohon isi ' + errors.join(', ') + ' terlebih dahulu!',
+            confirmButtonColor: '#3085d6'
+        });
+    }
+});
+});
+</script>
+@endpush
 @endsection

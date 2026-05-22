@@ -25,8 +25,8 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Nama Barang</label>
-                        <input type="text" name="name" class="form-control" placeholder="Contoh: Laptop MacBook Pro" required>
+                        <label class="form-label fw-bold">Nama Barang <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="Contoh: Laptop MacBook Pro">
                     </div>
 
                     <div class="mb-4">
@@ -45,7 +45,7 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold">Kategori</label>
+                            <label class="fw-bold">Kategori <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select name="category_id" id="category_select" class="form-select">
                                     <option value="">-- Pilih Kategori --</option>
@@ -58,7 +58,7 @@
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold">Divisi</label>
+                            <label class="fw-bold">Divisi <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select name="division_id" id="division_select" class="form-select">
                                     <option value="">-- Pilih Divisi --</option>
@@ -185,23 +185,32 @@
 </div>
 @push('scripts')
 <script>
+document.addEventListener('DOMContentLoaded', function() {
 document.getElementById('formProduct').addEventListener('submit', function(e) {
+    const name = document.querySelector('input[name="name"]').value.trim();
     const category = document.getElementById('category_select').value;
     const division = document.getElementById('division_select').value;
     const errors = [];
+    const fields = [];
 
-    if (!category) errors.push('Kategori');
-    if (!division) errors.push('Divisi');
+    if (!name) { errors.push('Nama Barang'); fields.push('name'); }
+    if (!category) { errors.push('Kategori'); fields.push('category'); }
+    if (!division) { errors.push('Divisi'); fields.push('division'); }
 
     if (errors.length) {
         e.preventDefault();
+        const first = fields[0];
+        if (first === 'name') document.querySelector('input[name="name"]').focus();
+        else if (first === 'category') document.getElementById('category_select').focus();
+        else document.getElementById('division_select').focus();
         Swal.fire({
             icon: 'warning',
             title: 'Lengkapi Data',
-            text: 'Mohon pilih ' + errors.join(' & ') + ' terlebih dahulu!',
+            text: 'Mohon isi ' + errors.join(', ') + ' terlebih dahulu!',
             confirmButtonColor: '#3085d6'
         });
     }
+});
 });
 </script>
 @endpush
