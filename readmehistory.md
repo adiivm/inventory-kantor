@@ -268,3 +268,15 @@ Sebelum import Excel, bisa download template kosong:
 - **Supplier AJAX fix**: `SupplierController@store` now uses `Validator` directly to always return JSON; JS `.then()` handles `data.success === false`
 - **Product form alert**: SweetAlert2 warning if Category/Division not selected
 - **Product index** ordered by SKU descending (newest first)
+
+## ð Changelog
+
+### 2026-06-18
+- **User Management:** Tambah flag `can_approve` pada user (approval distribution).
+- **Consumable Stock Report:** Export Excel laporan stok consumable.
+- **Notifikasi Bell:** Dua bell terpisah â bell kuning untuk garansi kritis, bell hijau untuk permintaan distribusi pending. Notifikasi otomatis ditandai read saat di-approve/reject.
+- **Consumable Import:** Download template Excel untuk import master barang.
+- **Consumable Items:** Perbaikan tombol edit & soft delete (class selector mismatch).
+- **Consumable Dashboard:** Halaman dashboard consumable professional dengan 3 row layout — KPI cards (Total Barang, Stok Menipis, Distribusi Pending, Transaksi Hari Ini), Action Center (Urgent Restock + Pending Approvals dengan tombol shortcut), Visual Analytics (Line Chart Outflow 7 hari + Bar Chart Top 5 Requested Items).
+- **Consumable Kartu Stok:** Fitur riwayat pergerakan stok per item — tombol History (🕒) di master barang, menampilkan timeline transaksi dengan tipe, qty, sisa stok, dan referensi distribusi.
+- **Approval Transaksi Masuk:** Migration tambah kolom `status` & `approved_by` di `stock_transactions`. Store set status `pending`, tidak langsung tambah stok. Approve/Reject via tombol di DataTable (hanya user `can_approve`). Notifikasi ke approver via `StockInPendingNotification` muncul di green bell bersama notifikasi distribusi.

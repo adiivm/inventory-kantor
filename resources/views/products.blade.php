@@ -477,10 +477,10 @@
 
         $.get(`/product/${id}`, function(data) {
             // 1. SIAPKAN DATA
-            var harga = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(data.price || 0);
+            var harga = data.price ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(data.price) : '-';
             var tglBeli = data.purchase_date ? new Date(data.purchase_date).toLocaleDateString('id-ID') : '-';
-            var tglGaransi = data.warranty_expiry_date ? new Date(data.warranty_expiry_date).toLocaleDateString('id-ID') : 'Tidak Ada / Habis';
-            var warnaBadge = data.warranty_color || 'secondary'; // Ambil warna dari Controller
+            var tglGaransi = data.warranty_expiry_date ? new Date(data.warranty_expiry_date).toLocaleDateString('id-ID') : '-';
+            var warnaBadge = data.warranty_color || 'secondary';
             var tglAudit = data.last_audited_at ? new Date(data.last_audited_at).toLocaleDateString('id-ID') : 'Belum Pernah';
             var namaPemegang = (data.held_by || data.heldBy)?.name || '-';
             

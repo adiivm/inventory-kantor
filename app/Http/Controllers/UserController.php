@@ -34,8 +34,9 @@ class UserController extends Controller
         User::create([
             'name'     => $request->name,
             'email'    => $request->email,
-            'password' => Hash::make($request->password), // Password WAJIB di-hash
-            'role'     => $request->role, // Menentukan role (Admin/Staff)
+            'password' => Hash::make($request->password),
+            'role'     => $request->role,
+            'can_approve' => $request->boolean('can_approve'),
         ]);
 
         return back()->with('success', 'User ' . $request->name . ' berhasil ditambahkan!');
@@ -55,6 +56,7 @@ class UserController extends Controller
         $user->name  = $request->name;
         $user->email = $request->email;
         $user->role  = $request->role;
+        $user->can_approve = $request->boolean('can_approve');
 
         // Jika kotak password di modal edit diisi, baru kita ganti
         if ($request->filled('password')) {

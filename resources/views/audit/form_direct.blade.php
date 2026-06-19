@@ -39,13 +39,13 @@
                     <div class="col-6">
                         <div class="info-card">
                             <div class="info-label"><i class="bi bi-tag me-1"></i> Kategori</div>
-                            <div class="info-value">{{ $product->category->name ?? 'Belum ditentukan' }}</div>
+                            <div class="info-value">{{ $product->category->name ?? '-' }}</div>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="info-card">
                             <div class="info-label"><i class="bi bi-building me-1"></i> Divisi</div>
-                            <div class="info-value">{{ $product->division->name ?? 'Belum ditentukan' }}</div>
+                            <div class="info-value">{{ $product->division->name ?? '-' }}</div>
                         </div>
                     </div>
                 </div>
@@ -53,13 +53,13 @@
                     <div class="col-6">
                         <div class="info-card">
                             <div class="info-label"><i class="bi bi-person me-1"></i> Pemegang</div>
-                            <div class="info-value">{{ $product->heldBy->name ?? 'Belum ditentukan' }}</div>
+                            <div class="info-value">{{ $product->heldBy->name ?? '-' }}</div>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="info-card">
                             <div class="info-label"><i class="bi bi-geo-alt me-1"></i> Lokasi</div>
-                            <div class="info-value">{{ $product->location->name ?? 'Belum ditentukan' }}</div>
+                            <div class="info-value">{{ $product->location->name ?? '-' }}</div>
                         </div>
                     </div>
                 </div>

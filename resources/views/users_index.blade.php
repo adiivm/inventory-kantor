@@ -12,6 +12,7 @@
                         <th>Nama</th>
                         <th>Email</th>
                         <th>Role</th>
+                        <th>Approve</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -24,6 +25,13 @@
                             <span class="badge {{ $u->role == 'admin' ? 'bg-danger' : 'bg-info' }}">
                                 {{ strtoupper($u->role) }}
                             </span>
+                        </td>
+                        <td>
+                            @if($u->can_approve)
+                                <span class="badge bg-success">Ya</span>
+                            @else
+                                <span class="badge bg-secondary">Tidak</span>
+                            @endif
                         </td>
                         <td>
                             <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editUser{{ $u->id }}">
@@ -69,6 +77,12 @@
                                             <label>Password Baru (Kosongkan jika tidak ganti)</label>
                                             <input type="password" name="password" class="form-control">
                                         </div>
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" name="can_approve" value="1" class="form-check-input" id="canApprove{{ $u->id }}" {{ $u->can_approve ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="canApprove{{ $u->id }}">Dapat menyetujui permintaan distribusi</label>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -97,6 +111,10 @@
                                 <option value="staff">Staff</option>
                                 <option value="admin">Admin</option>
                             </select>
+                            <div class="form-check form-switch mt-2">
+                                <input type="checkbox" name="can_approve" value="1" class="form-check-input" id="canApproveNew">
+                                <label class="form-check-label" for="canApproveNew">Dapat menyetujui permintaan distribusi</label>
+                            </div>
                         </div>
                         <div class="modal-footer"><button class="btn btn-primary">Simpan</button></div>
                     </div>

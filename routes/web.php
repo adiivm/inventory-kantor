@@ -12,6 +12,12 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\ConsumableCategoryController;
+use App\Http\Controllers\ConsumableItemController;
+use App\Http\Controllers\ConsumableUnitController;
+use App\Http\Controllers\ConsumableDashboardController;
+use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\DistributionController;
 use App\Models\HeldBy;
 use App\Models\Location;
 
@@ -76,12 +82,16 @@ Route::middleware('auth')->group(function () {
     /** --- API & DROP-DOWN OTOMATIS --- **/
     Route::post('/api/categories', [CategoryController::class, 'store']);
     Route::post('/api/divisions', [DivisionController::class, 'store']);
+    Route::get('/api/divisions', [DivisionController::class, 'getAll']);
 
     // Route untuk simpan Pemegang Baru via AJAX
     Route::post('/api/held_bies', function (Request $request) {
         $request->validate(['name' => 'required|unique:held_bies,name'], ['name.unique' => 'Nama pemegang ini sudah ada!']);
         $data = HeldBy::create(['name' => $request->name]);
         return response()->json($data);
+    });
+    Route::get('/api/held_bies', function () {
+        return response()->json(\App\Models\HeldBy::orderBy('name')->get());
     });
 
     // Route untuk simpan Lokasi Baru via AJAX
@@ -103,6 +113,9 @@ Route::middleware('auth')->group(function () {
         $item->delete();
         return response()->json(['success' => true, 'message' => 'Pemegang berhasil dihapus.']);
     });
+    Route::delete('/api/consumable-categories/{id}', [ConsumableCategoryController::class, 'destroy']);
+    Route::delete('/api/consumable-units/{id}', [ConsumableUnitController::class, 'destroy']);
+
     Route::delete('/api/locations/{id}', function ($id) {
         \Illuminate\Support\Facades\Gate::authorize('admin-only');
         $item = Location::findOrFail($id);
@@ -120,6 +133,8 @@ Route::middleware('auth')->group(function () {
             'divisions' => \App\Models\Division::orderBy('name')->get(),
             'held_bies' => \App\Models\HeldBy::orderBy('name')->get(),
             'locations' => \App\Models\Location::orderBy('name')->get(),
+            'consumableCategories' => \App\Models\ConsumableCategory::orderBy('name')->get(),
+            'consumableUnits' => \App\Models\ConsumableUnit::orderBy('name')->get(),
         ]);
     })->name('master.data');
 
@@ -127,6 +142,67 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
     Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+
+    /** --- CONSUMABLE STOCK MANAGEMENT --- **/
+    Route::get('/consumable/categories', [ConsumableCategoryController::class, 'index'])->name('consumable.categories');
+    Route::post('/consumable/categories', [ConsumableCategoryController::class, 'store']);
+    Route::get('/consumable/categories/{id}/edit', [ConsumableCategoryController::class, 'edit']);
+    Route::put('/consumable/categories/{id}', [ConsumableCategoryController::class, 'update']);
+    Route::delete('/consumable/categories/{id}', [ConsumableCategoryController::class, 'destroy']);
+    Route::get('/api/consumable-categories', [ConsumableCategoryController::class, 'getAll']);
+
+    Route::get('/consumable/items', [ConsumableItemController::class, 'index'])->name('consumable.items');
+    Route::post('/consumable/items', [ConsumableItemController::class, 'store']);
+    Route::get('/consumable/items/{id}/edit', [ConsumableItemController::class, 'edit']);
+    Route::get('/consumable/items/{id}/history', [ConsumableItemController::class, 'history'])->name('consumable.items.history');
+    Route::put('/consumable/items/{id}', [ConsumableItemController::class, 'update']);
+    Route::delete('/consumable/items/{id}', [ConsumableItemController::class, 'destroy']);
+    Route::get('/api/consumable-items', [ConsumableItemController::class, 'getAll']);
+    Route::post('/consumable/items/import', [ConsumableItemController::class, 'import'])->name('consumable.items.import');
+    Route::get('/consumable/items/import-template', [ConsumableItemController::class, 'downloadTemplate'])->name('consumable.items.import_template');
+    Route::get('/consumable/dashboard', [ConsumableDashboardController::class, 'index'])->name('consumable.dashboard');
+
+    Route::get('/consumable/units', [ConsumableUnitController::class, 'index'])->name('consumable.units');
+    Route::post('/consumable/units', [ConsumableUnitController::class, 'store']);
+    Route::get('/consumable/units/{id}/edit', [ConsumableUnitController::class, 'edit']);
+    Route::put('/consumable/units/{id}', [ConsumableUnitController::class, 'update']);
+    Route::delete('/consumable/units/{id}', [ConsumableUnitController::class, 'destroy']);
+    Route::get('/api/consumable-units', [ConsumableUnitController::class, 'getAll']);
+
+    Route::get('/consumable/transactions', [StockTransactionController::class, 'index'])->name('consumable.transactions');
+    Route::post('/consumable/transactions', [StockTransactionController::class, 'store']);
+    Route::post('/consumable/transactions/{id}/approve', [StockTransactionController::class, 'approve'])->name('consumable.transactions.approve');
+    Route::post('/consumable/transactions/{id}/reject', [StockTransactionController::class, 'reject'])->name('consumable.transactions.reject');
+
+    Route::get('/consumable/distributions', [DistributionController::class, 'index'])->name('consumable.distributions');
+    Route::post('/consumable/distributions', [DistributionController::class, 'store']);
+    Route::post('/consumable/distributions/{id}/approve', [DistributionController::class, 'approve'])->name('consumable.distributions.approve');
+    Route::post('/consumable/distributions/{id}/reject', [DistributionController::class, 'reject'])->name('consumable.distributions.reject');
+    Route::post('/consumable/distributions/{id}/signature', [DistributionController::class, 'saveSignature'])->name('consumable.distributions.signature');
+    Route::get('/consumable/distributions/{id}', [DistributionController::class, 'show']);
+    Route::get('/consumable/distributions/{id}/print', [DistributionController::class, 'printPdf'])->name('consumable.distributions.print');
+    Route::get('/consumable/reports', function () {
+        return view('consumable.reports', [
+            'items' => \App\Models\ConsumableItem::with('category', 'supplier')->orderBy('name')->get(),
+        ]);
+    })->name('consumable.reports');
+    Route::post('/consumable/reports/export', function () {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ConsumableStockReportExport,
+            'Laporan-Stok-Consumable.xlsx'
+        );
+    })->name('consumable.reports.export');
+
+    Route::get('/consumable/distributions/verify/{id}', function ($id) {
+        $header = App\Models\DistributionHeader::with('details.consumableItem')->findOrFail($id);
+        return view('consumable.pdf_bukti', compact('header'));
+    })->name('distribution.verify');
+
+    Route::post('/notifications/{id}/read', function ($id) {
+        $notification = auth()->user()->notifications()->findOrFail($id);
+        $notification->markAsRead();
+        return response()->json(['success' => true]);
+    })->name('notifications.read');
 
     /** --- SUPPLIER MANAGEMENT --- **/
     Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');

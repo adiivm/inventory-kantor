@@ -138,6 +138,72 @@
                 </div>
             </div>
         </div>
+
+        {{-- KATEGORI CONSUMABLE --}}
+        <div class="col-lg-6">
+            <div class="card p-3 h-100">
+                <h5 class="fw-bold mb-3"><i class="bi bi-folder me-2 text-info"></i>Kategori Consumable</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nama</th>
+                                <th class="text-end" style="width:80px">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($consumableCategories as $cc)
+                            <tr>
+                                <td>{{ $cc->name }}</td>
+                                <td class="text-end">
+                                    @if(Auth::user()->role === 'admin')
+                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('consumable-categories', {{ $cc->id }}, '{{ $cc->name }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada kategori consumable</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- SATUAN CONSUMABLE --}}
+        <div class="col-lg-6">
+            <div class="card p-3 h-100">
+                <h5 class="fw-bold mb-3"><i class="bi bi-rulers me-2 text-secondary"></i>Satuan Consumable</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nama</th>
+                                <th class="text-end" style="width:80px">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($consumableUnits as $cu)
+                            <tr>
+                                <td>{{ $cu->name }}</td>
+                                <td class="text-end">
+                                    @if(Auth::user()->role === 'admin')
+                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('consumable-units', {{ $cu->id }}, '{{ $cu->name }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    @endif
+                                </td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada satuan consumable</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

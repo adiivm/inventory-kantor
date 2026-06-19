@@ -40,4 +40,9 @@ class DivisionController extends Controller
             'message' => 'Divisi berhasil dihapus.'
         ]);
     }
+
+    public function getAll()
+    {
+        return response()->json(Division::orderBy('name')->get());
+    }
 }

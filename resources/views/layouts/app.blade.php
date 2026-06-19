@@ -55,7 +55,7 @@
         }
         
         :root {
-            --sidebar-width: 260px;
+            --sidebar-width: 250px;
             --primary-color: #4361ee;
             --soft-bg: #fdfdfe;
         }
@@ -67,47 +67,125 @@
             overflow-x: hidden;
         }
 
-        /* --- SIDEBAR STYLE --- */
+        /* --- SIDEBAR STYLE (FULL CUSTOM, NO BOOTSTRAP NAV) --- */
         #sidebar {
-            width: var(--sidebar-width);
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            background: #fff;
-            transition: all 0.3s;
             z-index: 1000;
             border-right: 1px solid #e9edf7;
+            transition: all 0.3s;
         }
 
-        .sidebar-header {
-            padding: 20px;
-            text-align: center;
+        .sidebar-header hr {
+            margin: 12px 0 4px;
         }
 
-        .nav-pills .nav-link {
+        .sidebar-menu {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 12px;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .sidebar-menu::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+
+        .sidebar-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .sidebar-group-title {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #b0b9ce;
+            padding: 10px 4px 6px;
+            width: 100%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+
+        .sidebar-group-title:hover {
+            color: #8892a8;
+        }
+
+        .sidebar-chevron {
+            font-size: 0.55rem;
+            transition: transform 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar-group-title[aria-expanded="true"] .sidebar-chevron {
+            transform: rotate(0deg);
+        }
+
+        .sidebar-group-title[aria-expanded="false"] .sidebar-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 2px;
+            border-radius: 8px;
             color: #a3adc2;
-            padding: 12px 25px;
-            border-radius: 0;
             font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
             transition: 0.3s;
-            border-right: 4px solid transparent;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
 
-        .nav-pills .nav-link:hover {
+        .sidebar-link:hover {
             background: #f4f7fe;
             color: var(--primary-color);
         }
 
-        .nav-pills .nav-link.active {
+        .sidebar-link.active {
             background: #f4f7fe;
             color: var(--primary-color);
-            border-right: 4px solid var(--primary-color);
         }
 
-        .nav-pills .nav-link i {
-            margin-right: 10px;
-            font-size: 1.1rem;
+        .sidebar-link i {
+            margin-right: 8px;
+            font-size: 1rem;
+            width: 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-link span {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            flex-shrink: 0;
+            width: 100%;
         }
 
         /* --- MAIN CONTENT STYLE --- */
@@ -149,9 +227,26 @@
 
         /* --- RESPONSIVE SIDEBAR --- */
         @media (max-width: 992px) {
-            #sidebar { left: calc(-1 * var(--sidebar-width)); }
+            #sidebar {
+                left: calc(-1 * var(--sidebar-width));
+                width: min(var(--sidebar-width), 85vw);
+                min-width: unset;
+            }
             #sidebar.active { left: 0; }
             #content { margin-left: 0; width: 100%; }
+        }
+
+        @media (max-width: 576px) {
+            #sidebar {
+                width: 85vw;
+                left: -85vw;
+                min-width: unset;
+            }
+            #sidebar.active { left: 0; }
+            .sidebar-link { padding: 8px 10px; font-size: 0.85rem; }
+            .sidebar-link i { width: 16px; font-size: 0.9rem; margin-right: 6px; }
+            .sidebar-group-title { font-size: 0.55rem; }
+            .sidebar-menu { padding: 0 8px; }
         }
 
         /* Styling Mobile Card */
@@ -195,55 +290,7 @@
     </style>
 </head>
 <body>
-    <nav id="sidebar">
-        <div class="sidebar-header">
-            <img src="{{ asset('images/ivans_motor.png') }}" alt="Logo" class="img-fluid mb-2" style="filter: brightness(0) saturate(100%) invert(34%) sepia(87%) animate(204%) hue-rotate(222deg) brightness(97%) contrast(92%);">
-            <h6 class="fw-bold mt-2">Inventory System</h6>
-            <hr class="text-muted">
-        </div>
-
-        <div class="nav flex-column nav-pills">
-            <a href="/dashboard" class="nav-link {{ request()->is('dashboard*') ? 'active' : '' }}">
-                <i class="bi bi-speedometer2"></i> Dashboard
-            </a>
-            <a href="/products" class="nav-link {{ request()->is('products*') ? 'active' : '' }}">
-                <i class="bi bi-box-seam"></i> Assets
-            </a>
-            
-            <a href="{{ route('product.trash') }}" class="nav-link {{ request()->is('trash*') ? 'active' : '' }}">
-                <i class="bi bi-archive"></i> Archive
-            </a>
-
-            <a href="{{ route('reports.index') }}" class="nav-link {{ request()->is('report*') ? 'active' : '' }}">
-                <i class="bi bi-file-earmark-text"></i> Reports
-            </a>
-
-            <a href="{{ route('profile.index') }}" class="nav-link {{ request()->is('profile*') ? 'active' : '' }}">
-                <i class="bi bi-person-circle"></i> My Profile
-            </a>
-            
-            @if(Auth::check() && Auth::user()->role === 'admin')
-            <a href="{{ route('users.index') }}" class="nav-link">
-                <i class="bi bi-people"></i> User Management
-            </a>
-            <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->is('suppliers*') ? 'active' : '' }}">
-                <i class="bi bi-truck"></i> Suppliers
-            </a>
-            <a href="{{ route('master.data') }}" class="nav-link {{ request()->is('master-data*') ? 'active' : '' }}">
-                <i class="bi bi-database-gear"></i> Master Data
-            </a>
-            @endif
-
-            <div class="mt-auto p-3">
-                <form action="{{ route('logout') }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn btn-light w-100 text-danger fw-bold rounded-3">
-                        <i class="bi bi-box-arrow-right"></i> Logout
-                    </button>
-                </form>
-            </div>
-        </div>
-    </nav>
+    @include('layouts.sidebar')
     <div id="sidebar-overlay"></div>
     <div id="content">
         <nav class="top-navbar d-flex justify-content-between align-items-center">
@@ -254,35 +301,16 @@
             <h2 class="mb-0 fw-bold d-none d-sm-block text-muted">Selamat Datang {{ Auth::user()->name }}👋</h2>
 
             <div class="user-info d-flex align-items-center gap-2">
-                <!-- Notifikasi -->
-                @if($jmlGaransiKritis > 0 || $jmlNotifikasi > 0)
+                <!-- Notifikasi Garansi Kritis -->
+                @if($jmlGaransiKritis > 0)
                 <div class="dropdown me-2">
                     <a href="#" class="position-relative text-dark d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-bell-fill text-warning" style="font-size: 1.3rem;"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.85rem; min-width: 24px; height: 24px;">
-                            {{ $jmlGaransiKritis + $jmlNotifikasi }}
+                            {{ $jmlGaransiKritis }}
                         </span>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-width: 90vw; border-radius: 12px;">
-                        @if($jmlNotifikasi > 0)
-                        <div class="px-2 py-2 border-bottom">
-                            <span class="fw-bold text-primary small"><i class="bi bi-info-circle me-1"></i> Notifikasi Sistem</span>
-                        </div>
-                        @foreach($unreadNotifications as $notif)
-                        <a href="{{ route('product.index', ['warranty_status' => 'critical']) }}" class="dropdown-item py-2 border-bottom">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong class="d-block" style="font-size: 0.8rem;">
-                                        {{ $notif->data['total'] ?? 0 }} Produk
-                                    </strong>
-                                    <span class="text-muted" style="font-size: 0.7rem;">{{ $notif->data['message'] ?? '' }}</span>
-                                </div>
-                                <small class="text-muted" style="font-size: 0.65rem;">{{ $notif->created_at->diffForHumans() }}</small>
-                            </div>
-                        </a>
-                        @endforeach
-                        <div class="border-bottom my-1"></div>
-                        @endif
                         <div class="d-flex justify-content-between align-items-center px-2 py-2">
                             <span class="fw-bold text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Garansi Kritis</span>
                             <a href="{{ route('product.index', ['warranty_status' => 'critical']) }}" class="btn btn-sm btn-warning py-1 px-2" style="font-size: 0.7rem;">Lihat</a>
@@ -311,6 +339,57 @@
                             </div>
                         </a>
                         @endforeach
+                    </div>
+                </div>
+                @endif
+
+                <!-- Notifikasi Approval -->
+                @if($jmlDistribusi > 0 || $jmlStockIn > 0)
+                <div class="dropdown me-2">
+                    <a href="#" class="position-relative text-dark d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell-fill text-success" style="font-size: 1.3rem;"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.85rem; min-width: 24px; height: 24px;">
+                            {{ $jmlDistribusi + $jmlStockIn }}
+                        </span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-width: 90vw; border-radius: 12px;">
+                        @if($jmlDistribusi > 0)
+                        <div class="px-2 py-2 border-bottom">
+                            <span class="fw-bold text-success small"><i class="bi bi-truck me-1"></i> Permintaan Distribusi</span>
+                        </div>
+                        @foreach($distribusiNotifications as $notif)
+                        <a href="{{ route('consumable.distributions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block" style="font-size: 0.8rem;">
+                                        {{ $notif->data['reference_number'] ?? '-' }}
+                                    </strong>
+                                    <span class="text-muted" style="font-size: 0.7rem;">{{ $notif->data['requester_name'] ?? '' }}</span>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.65rem;">{{ $notif->created_at->diffForHumans() }}</small>
+                            </div>
+                        </a>
+                        @endforeach
+                        @endif
+
+                        @if($jmlStockIn > 0)
+                        <div class="px-2 py-2 border-bottom {{ $jmlDistribusi > 0 ? 'mt-2' : '' }}">
+                            <span class="fw-bold text-primary small"><i class="bi bi-box-arrow-in-right me-1"></i> Transaksi Masuk</span>
+                        </div>
+                        @foreach($stockInNotifications as $notif)
+                        <a href="{{ route('consumable.transactions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block" style="font-size: 0.8rem;">
+                                        {{ $notif->data['item_name'] ?? '-' }}
+                                    </strong>
+                                    <span class="text-muted" style="font-size: 0.7rem;">{{ $notif->data['qty'] ?? '' }} barang</span>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.65rem;">{{ $notif->created_at->diffForHumans() }}</small>
+                            </div>
+                        </a>
+                        @endforeach
+                        @endif
                     </div>
                 </div>
                 @endif

@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'photo',
+        'can_approve',
     ];
 
     /**
@@ -45,6 +46,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'can_approve' => 'boolean',
         ];
     }
 }

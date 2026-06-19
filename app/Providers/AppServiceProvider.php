@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use App\Models\User;
 use App\Models\Product;
+use App\Models\DistributionHeader;
 use App\Observers\ProductObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === 'admin' || $user->role === 'staff';
         });
 
-        // View Composer untuk data garansi kritis + notifikasi (Navbar)
+        // View Composer untuk data notifikasi (Navbar)
         View::composer('layouts.app', function ($view) {
             $garansiKritis = Product::active()->warrantyCritical()
                 ->orderBy('warranty_expiry_date', 'asc')
@@ -45,18 +46,47 @@ class AppServiceProvider extends ServiceProvider
 
             $jmlGaransiKritis = Product::active()->warrantyCritical()->count();
 
-            $unreadNotifications = collect();
-            $jmlNotifikasi = 0;
+            $distribusiNotifications = collect();
+            $jmlDistribusi = 0;
+
+            $stockInNotifications = collect();
+            $jmlStockIn = 0;
 
             if (auth()->check()) {
-                $unreadNotifications = auth()->user()->unreadNotifications()->limit(5)->get();
-                $jmlNotifikasi = auth()->user()->unreadNotifications()->count();
+                $rawNotifications = auth()->user()->unreadNotifications()
+                    ->where('type', 'App\Notifications\DistributionPendingNotification')
+                    ->limit(10)
+                    ->get();
+
+                // Hanya tampilkan notifikasi untuk distribusi yang masih pending
+                $distribusiNotifications = $rawNotifications->filter(function ($notif) {
+                    $distId = $notif->data['distribution_id'] ?? null;
+                    if (!$distId) return false;
+                    $header = DistributionHeader::find($distId);
+                    return $header && $header->status === 'pending';
+                })->take(5);
+
+                $jmlDistribusi = $distribusiNotifications->count();
+
+                $stockInNotifications = auth()->user()->unreadNotifications()
+                    ->where('type', 'App\Notifications\StockInPendingNotification')
+                    ->limit(10)
+                    ->get()
+                    ->filter(function ($notif) {
+                        $txId = $notif->data['stock_transaction_id'] ?? null;
+                        if (!$txId) return false;
+                        $tx = \App\Models\StockTransaction::find($txId);
+                        return $tx && $tx->status === 'pending';
+                    })->take(5);
+                $jmlStockIn = $stockInNotifications->count();
             }
 
             $view->with('garansiKritis', $garansiKritis)
                  ->with('jmlGaransiKritis', $jmlGaransiKritis)
-                 ->with('unreadNotifications', $unreadNotifications)
-                 ->with('jmlNotifikasi', $jmlNotifikasi);
+                 ->with('distribusiNotifications', $distribusiNotifications)
+                 ->with('jmlDistribusi', $jmlDistribusi)
+                 ->with('stockInNotifications', $stockInNotifications)
+                 ->with('jmlStockIn', $jmlStockIn);
         });
     }
 }

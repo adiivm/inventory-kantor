@@ -119,7 +119,7 @@ class Product extends Model
         $now = \Carbon\Carbon::now();
 
         if ($expiry->isPast()) {
-            return 'secondary'; // Sudah lewat -> Abu-abu
+            return 'danger'; // Sudah lewat -> Merah
         } elseif ($now->diffInDays($expiry) <= 30) {
             return 'warning text-dark'; // Sisa <= 30 hari (1 bulan) -> Kuning
         } else {
