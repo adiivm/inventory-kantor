@@ -8,6 +8,7 @@ use App\Models\ConsumableItem;
 use App\Models\DistributionHeader;
 use App\Models\DistributionDetail;
 use App\Models\StockTransaction;
+use App\Helpers\Activity;
 use App\Notifications\DistributionPendingNotification;
 use App\Notifications\LowStockNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -27,6 +28,18 @@ class DistributionController extends Controller
 
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            }
+
+            if ($request->filled('division_id')) {
+                $query->where('division_id', $request->division_id);
+            }
+
+            if ($request->filled('date_start')) {
+                $query->whereDate('created_at', '>=', $request->date_start);
+            }
+
+            if ($request->filled('date_end')) {
+                $query->whereDate('created_at', '<=', $request->date_end);
             }
 
             return DataTables::of($query)
@@ -110,6 +123,8 @@ class DistributionController extends Controller
             }
 
             DB::commit();
+
+            Activity::logCreate('distribution', "Distribusi {$header->reference_number} oleh {$header->requester_name}", $header, $header->toArray());
 
             $approvers = User::where('can_approve', true)->get();
             if ($approvers->isNotEmpty()) {
@@ -195,10 +210,12 @@ class DistributionController extends Controller
 
             DB::commit();
 
+            Activity::log('distribution', 'approve', "Distribusi {$header->reference_number} disetujui", $header);
+
             // Tandai semua notifikasi distribusi ini sebagai sudah dibaca
             \Illuminate\Support\Facades\DB::table('notifications')
                 ->where('type', 'App\Notifications\DistributionPendingNotification')
-                ->where('data->distribution_id', $id)
+                ->whereRaw("data::jsonb->>'distribution_id' = ?", [(string) $id])
                 ->update(['read_at' => now()]);
 
             return response()->json([
@@ -241,8 +258,10 @@ class DistributionController extends Controller
         // Tandai semua notifikasi distribusi ini sebagai sudah dibaca
         \Illuminate\Support\Facades\DB::table('notifications')
             ->where('type', 'App\Notifications\DistributionPendingNotification')
-            ->where('data->distribution_id', $id)
+            ->whereRaw("data::jsonb->>'distribution_id' = ?", [(string) $id])
             ->update(['read_at' => now()]);
+
+        Activity::log('distribution', 'reject', "Distribusi {$header->reference_number} ditolak", $header);
 
         return response()->json([
             'success' => true,

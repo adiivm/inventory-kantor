@@ -9,16 +9,22 @@
     <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
         <tr>
             <td style="width:70px; text-align:center; vertical-align:middle;">
+                @isset($qrCode)
                 <img src="{{ public_path('images/ivans_motor.png') }}" style="max-width:60px;" alt="Logo">
+                @else
+                <img src="/images/ivans_motor.png" style="max-width:60px;" alt="Logo">
+                @endisset
             </td>
             <td style="text-align:center; vertical-align:middle;">
                 <div style="font-size:18pt; font-weight:bold; margin:0 0 4px 0; color:#1a1a2e;">INVENTORY SYSTEM</div>
                 <div style="font-size:14pt; margin:0; font-weight:normal; color:#555;">BUKTI SERAH TERIMA BARANG</div>
                 <div style="font-size:10pt; color:#777; margin-top:4px;">No. {{ $header->reference_number }}</div>
             </td>
+            @isset($qrCode)
             <td style="width:100px; text-align:right; vertical-align:middle;">
                 <img src="data:image/svg+xml;base64,{{ $qrCode }}" style="width:80px; height:80px;" alt="QR">
             </td>
+            @endisset
         </tr>
     </table>
 
@@ -70,7 +76,7 @@
                     <div style="margin:20px 0; color:#ccc; font-style:italic;">(Belum ditandatangani)</div>
                 @endif
                 <div style="border-top:1px solid #333; width:180px; margin:35px auto 5px auto;"></div>
-                <div style="font-weight:bold; font-size:10pt;">{{ auth()->user()->name ?? '___________________' }}</div>
+                <div style="font-weight:bold; font-size:10pt;">{{ $header->approver->name ?? '___________________' }}</div>
                 <div style="font-size:9pt; color:#777;">Admin / Purchasing</div>
                 @if($header->received_at)
                     <div style="font-size:9pt; color:#555; margin-top:2px;">{{ $header->received_at->format('d/m/Y H:i') }}</div>

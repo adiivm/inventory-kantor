@@ -27,7 +27,7 @@
                     <i class="bi bi-archive"></i> <span>Archive</span>
                 </a>
                 <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->is('reports*') ? 'active' : '' }}">
-                    <i class="bi bi-file-earmark-text"></i> <span>Laporan Asset</span>
+                    <i class="bi bi-file-earmark-text"></i> <span>Asset Reports</span>
                 </a>
             </div>
         </div>
@@ -48,20 +48,20 @@
                     <i class="bi bi-boxes"></i> <span>Consumable</span>
                 </a>
                 <a href="/consumable/transactions" class="sidebar-link {{ request()->is('consumable/transactions*') ? 'active' : '' }}">
-                    <i class="bi bi-arrow-left-right"></i> <span>Transaksi Masuk</span>
+                    <i class="bi bi-arrow-left-right"></i> <span>Transactions</span>
                 </a>
                 <a href="/consumable/distributions" class="sidebar-link {{ request()->is('consumable/distributions*') ? 'active' : '' }}">
-                    <i class="bi bi-truck"></i> <span>Distribusi</span>
+                    <i class="bi bi-truck"></i> <span>Distributions</span>
                 </a>
                 <a href="/consumable/reports" class="sidebar-link {{ request()->is('consumable/reports*') ? 'active' : '' }}">
-                    <i class="bi bi-file-earmark-bar-graph"></i> <span>Laporan Consumable</span>
+                    <i class="bi bi-file-earmark-bar-graph"></i> <span>Consumable Reports</span>
                 </a>
             </div>
         </div>
 
         {{-- MASTER --}}
         @php
-            $masterActive = request()->is('master-data*') || request()->is('suppliers*') || request()->is('users*') || request()->is('profile*') || request()->is('consumable/categories*') || request()->is('consumable/units*');
+            $masterActive = request()->is('master-data*') || request()->is('suppliers*') || request()->is('users*') || request()->is('activity-logs*') || request()->is('profile*') || request()->is('consumable/categories*') || request()->is('consumable/units*');
         @endphp
         <div class="sidebar-group">
             <div class="sidebar-group-title" data-bs-toggle="collapse" data-bs-target="#collapseMaster" role="button" aria-expanded="{{ $masterActive ? 'true' : 'false' }}">
@@ -72,12 +72,15 @@
                     <i class="bi bi-tags"></i> <span>Master Data</span>
                 </a>
                 <a href="{{ route('suppliers.index') }}" class="sidebar-link {{ request()->is('suppliers*') ? 'active' : '' }}">
-                    <i class="bi bi-person-lines-fill"></i> <span>Master Supplier</span>
+                    <i class="bi bi-person-lines-fill"></i> <span>Suppliers</span>
                 </a>
 
                 @if(Auth::check() && Auth::user()->role === 'admin')
                 <a href="{{ route('users.index') }}" class="sidebar-link {{ request()->is('users*') ? 'active' : '' }}">
                     <i class="bi bi-people"></i> <span>User Management</span>
+                </a>
+                <a href="{{ route('activity.logs') }}" class="sidebar-link {{ request()->is('activity-logs*') ? 'active' : '' }}">
+                    <i class="bi bi-activity"></i> <span>Activity Logs</span>
                 </a>
                 @endif
                 <a href="{{ route('profile.index') }}" class="sidebar-link {{ request()->is('profile*') ? 'active' : '' }}">

@@ -69,8 +69,8 @@
                                         <div class="mb-3">
                                             <label>Role</label>
                                             <select name="role" class="form-control">
-                                                <option value="Staff" {{ $u->role == 'Staff' ? 'selected' : '' }}>Staff</option>
-                                                <option value="Admin" {{ $u->role == 'Admin' ? 'selected' : '' }}>Admin</option>
+                                                <option value="staff" {{ $u->role == 'staff' ? 'selected' : '' }}>Staff</option>
+                                                <option value="admin" {{ $u->role == 'admin' ? 'selected' : '' }}>Admin</option>
                                             </select>
                                         </div>
                                         <div class="mb-3">

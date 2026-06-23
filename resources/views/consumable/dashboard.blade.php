@@ -19,57 +19,44 @@
             {{-- ROW 1 — HEALTH INDICATORS (KPI Cards)                       --}}
             {{-- ═══════════════════════════════════════════════════════════════ --}}
             <div class="row g-3 mb-4">
-                <div class="col-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body d-flex align-items-center gap-3 py-3">
-                            <div class="rounded-3 bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                                <i class="bi bi-box-seam text-primary fs-5"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="fs-4 fw-bold text-dark">{{ $totalItems }}</div>
-                                <div class="text-muted small text-truncate">Total Barang</div>
+                <div class="col-6 col-xl-4">
+                    <a href="{{ route('consumable.items') }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm h-100" style="background-color: #e8f0fe; border-left: 5px solid #4e73df !important;">
+                            <div class="card-body d-flex align-items-center justify-content-between py-3">
+                                <div>
+                                    <div class="fs-4 fw-bold" style="color: #4e73df;">{{ $totalItems }}</div>
+                                    <div class="small text-muted">Total Barang</div>
+                                </div>
+                                <i class="bi bi-box-seam fs-2" style="color: #4e73df;"></i>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body d-flex align-items-center gap-3 py-3">
-                            <div class="rounded-3 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                                <i class="bi bi-exclamation-triangle text-danger fs-5"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="fs-4 fw-bold text-danger">{{ $lowStockCount }}</div>
-                                <div class="text-muted small text-truncate">Stok Menipis</div>
+                <div class="col-6 col-xl-4">
+                    <a href="{{ route('consumable.items', ['stock_status' => 'low']) }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm h-100" style="background-color: #fff3e0; border-left: 5px solid #fd7e14 !important;">
+                            <div class="card-body d-flex align-items-center justify-content-between py-3">
+                                <div>
+                                    <div class="fs-4 fw-bold" style="color: #fd7e14;">{{ $lowStockCount }}</div>
+                                    <div class="small text-muted">Stok Menipis</div>
+                                </div>
+                                <i class="bi bi-exclamation-triangle fs-2" style="color: #fd7e14;"></i>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body d-flex align-items-center gap-3 py-3">
-                            <div class="rounded-3 bg-warning bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                                <i class="bi bi-clock-history text-warning fs-5"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="fs-4 fw-bold text-warning">{{ $pendingDistributionCount }}</div>
-                                <div class="text-muted small text-truncate">Distribusi Pending</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body d-flex align-items-center gap-3 py-3">
-                            <div class="rounded-3 bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-                                <i class="bi bi-arrow-left-right text-success fs-5"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="fs-4 fw-bold text-success">{{ $transactionsToday }}</div>
-                                <div class="text-muted small text-truncate">Transaksi Hari Ini</div>
+                <div class="col-6 col-xl-4">
+                    <a href="{{ route('consumable.distributions', ['status' => 'pending']) }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm h-100" style="background-color: #fff3cd; border-left: 5px solid #ffc107 !important;">
+                            <div class="card-body d-flex align-items-center justify-content-between py-3">
+                                <div>
+                                    <div class="fs-4 fw-bold" style="color: #856404;">{{ $pendingDistributionCount }}</div>
+                                    <div class="small text-muted">Distribusi Pending</div>
+                                </div>
+                                <i class="bi bi-clock-history fs-2" style="color: #856404;"></i>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
@@ -113,7 +100,7 @@
                                                 </td>
                                                 <td class="text-center text-muted">{{ $item->min_stock }}</td>
                                                 <td class="text-end pe-3">
-                                                    <a href="{{ route('consumable.transactions') }}?item_id={{ $item->id }}&type=in" class="btn btn-sm btn-success">
+                                                    <a href="{{ route('consumable.transactions') }}?consumable_item_id={{ $item->id }}&type=in" class="btn btn-sm btn-success">
                                                         <i class="bi bi-plus-circle"></i> Tambah Stok
                                                     </a>
                                                 </td>

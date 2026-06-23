@@ -23,12 +23,14 @@ class StockInPendingNotification extends Notification
 
     public function toDatabase(object $notifiable): array
     {
+        $typeLabel = $this->transaction->type === 'adjustment' ? 'Penyesuaian' : 'Transaksi masuk';
         return [
             'type' => 'stock_in_pending',
             'stock_transaction_id' => $this->transaction->id,
             'item_name' => $this->item->name,
             'qty' => $this->transaction->qty,
-            'message' => "Transaksi masuk baru menunggu approval: {$this->item->name} ({$this->transaction->qty} {$this->item->unit})",
+            'transaction_type' => $this->transaction->type,
+            'message' => "{$typeLabel} baru menunggu approval: {$this->item->name} ({$this->transaction->qty} {$this->item->unit})",
         ];
     }
 }

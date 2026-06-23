@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\View;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\DistributionHeader;
+use App\Models\StockTransaction;
 use App\Observers\ProductObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -52,33 +53,42 @@ class AppServiceProvider extends ServiceProvider
             $stockInNotifications = collect();
             $jmlStockIn = 0;
 
-            if (auth()->check()) {
-                $rawNotifications = auth()->user()->unreadNotifications()
-                    ->where('type', 'App\Notifications\DistributionPendingNotification')
-                    ->limit(10)
-                    ->get();
-
-                // Hanya tampilkan notifikasi untuk distribusi yang masih pending
-                $distribusiNotifications = $rawNotifications->filter(function ($notif) {
-                    $distId = $notif->data['distribution_id'] ?? null;
-                    if (!$distId) return false;
-                    $header = DistributionHeader::find($distId);
-                    return $header && $header->status === 'pending';
-                })->take(5);
-
-                $jmlDistribusi = $distribusiNotifications->count();
-
-                $stockInNotifications = auth()->user()->unreadNotifications()
-                    ->where('type', 'App\Notifications\StockInPendingNotification')
-                    ->limit(10)
+            if (auth()->check() && auth()->user()->can_approve) {
+                $distribusiNotifications = DistributionHeader::where('status', 'pending')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
                     ->get()
-                    ->filter(function ($notif) {
-                        $txId = $notif->data['stock_transaction_id'] ?? null;
-                        if (!$txId) return false;
-                        $tx = \App\Models\StockTransaction::find($txId);
-                        return $tx && $tx->status === 'pending';
-                    })->take(5);
-                $jmlStockIn = $stockInNotifications->count();
+                    ->map(function ($d) {
+                        return (object) [
+                            'data' => [
+                                'distribution_id' => $d->id,
+                                'reference_number' => $d->reference_number,
+                                'requester_name' => $d->requester_name,
+                            ],
+                            'created_at' => $d->created_at,
+                        ];
+                    });
+
+                $jmlDistribusi = DistributionHeader::where('status', 'pending')->count();
+
+                $stockInNotifications = StockTransaction::where('status', 'pending')
+                    ->whereIn('type', ['in', 'adjustment'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get()
+                    ->map(function ($tx) {
+                        return (object) [
+                            'data' => [
+                                'stock_transaction_id' => $tx->id,
+                                'item_name' => $tx->consumableItem->name,
+                                'qty' => $tx->qty,
+                                'type' => $tx->type,
+                            ],
+                            'created_at' => $tx->created_at,
+                        ];
+                    });
+
+                $jmlStockIn = StockTransaction::where('status', 'pending')->whereIn('type', ['in', 'adjustment'])->count();
             }
 
             $view->with('garansiKritis', $garansiKritis)

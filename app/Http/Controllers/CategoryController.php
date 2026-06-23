@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Helpers\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -17,6 +18,8 @@ class CategoryController extends Controller
         ]);
 
         $category = Category::create(['name' => $request->name]);
+
+        Activity::logCreate('master', "Kategori {$category->name}", $category, $category->toArray());
 
         return response()->json($category);
     }
@@ -35,6 +38,8 @@ class CategoryController extends Controller
         }
 
         $category->delete();
+
+        Activity::logDelete('master', "Kategori {$category->name}", $category, $category->toArray());
 
         return response()->json([
             'success' => true,

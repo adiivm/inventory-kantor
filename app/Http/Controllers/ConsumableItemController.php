@@ -8,6 +8,7 @@ use App\Models\ConsumableUnit;
 use App\Models\DistributionHeader;
 use App\Models\StockTransaction;
 use App\Models\Supplier;
+use App\Helpers\Activity;
 use App\Imports\ConsumableImport;
 use App\Exports\ConsumableTemplateExport;
 use Illuminate\Http\Request;
@@ -22,8 +23,24 @@ class ConsumableItemController extends Controller
         if ($request->ajax()) {
             $query = ConsumableItem::with('category', 'supplier');
 
+            if ($request->filled('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
+
+            if ($request->filled('supplier_id')) {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+
+            if ($request->filled('stock_status')) {
+                if ($request->stock_status === 'low') {
+                    $query->where('current_stock', '>', 0)
+                          ->whereColumn('current_stock', '<=', 'min_stock');
+                } elseif ($request->stock_status === 'out') {
+                    $query->where('current_stock', '<=', 0);
+                }
+            }
+
             return DataTables::of($query)
-                ->addIndexColumn()
                 ->editColumn('current_stock', function ($row) {
                     $badge = 'success';
                     if ($row->current_stock <= 0) {
@@ -76,8 +93,11 @@ class ConsumableItemController extends Controller
         if (empty($data['supplier_id'])) {
             $data['supplier_id'] = null;
         }
+        $data['sku'] = $this->generateSku();
         ConsumableUnit::firstOrCreate(['name' => $data['unit']]);
         $item = ConsumableItem::create($data);
+
+        Activity::logCreate('consumable', "Barang {$item->name}", $item, $item->toArray());
 
         return response()->json([
             'success' => true,
@@ -109,7 +129,10 @@ class ConsumableItemController extends Controller
         }
         ConsumableUnit::firstOrCreate(['name' => $validated['unit']]);
 
+        $oldValues = $item->toArray();
         $item->update($validated);
+
+        Activity::logUpdate('consumable', "Barang {$item->name}", $item, $oldValues, $item->fresh()->toArray());
 
         return response()->json([
             'success' => true,
@@ -129,6 +152,8 @@ class ConsumableItemController extends Controller
         }
 
         $item->delete();
+
+        Activity::logDelete('consumable', "Barang {$item->name}", $item, $item->toArray());
 
         return response()->json([
             'success' => true,
@@ -189,6 +214,8 @@ class ConsumableItemController extends Controller
             $count = $import->getCount() ?? 0;
 
             if ($count > 0) {
+                Activity::log('consumable', 'import', "Import {$count} barang consumable dari Excel");
+
                 return response()->json([
                     'success' => true,
                     'message' => "Import berhasil! {$count} barang telah ditambahkan.",
@@ -219,5 +246,64 @@ class ConsumableItemController extends Controller
     public function downloadTemplate()
     {
         return Excel::download(new ConsumableTemplateExport, 'template_import_consumable.xlsx');
+    }
+
+    public function report(Request $request)
+    {
+        if ($request->ajax()) {
+            $query = ConsumableItem::with('category', 'supplier');
+
+            if ($request->filled('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
+
+            if ($request->filled('supplier_id')) {
+                $query->where('supplier_id', $request->supplier_id);
+            }
+
+            if ($request->filled('stock_status')) {
+                if ($request->stock_status === 'aman') {
+                    $query->whereColumn('current_stock', '>', 'min_stock');
+                } elseif ($request->stock_status === 'menipis') {
+                    $query->where('current_stock', '>', 0)
+                          ->whereColumn('current_stock', '<=', 'min_stock');
+                } elseif ($request->stock_status === 'habis') {
+                    $query->where('current_stock', '<=', 0);
+                }
+            }
+
+            return DataTables::of($query)
+                ->addIndexColumn()
+                ->addColumn('category_name', fn($row) => $row->category?->name ?? '-')
+                ->addColumn('supplier_name', fn($row) => $row->supplier?->name ?? $row->supplier_name ?? '-')
+                ->addColumn('status_badge', function ($row) {
+                    if ($row->current_stock <= 0) {
+                        return '<span class="badge bg-danger">Habis</span>';
+                    } elseif ($row->current_stock <= $row->min_stock) {
+                        return '<span class="badge bg-warning text-dark">Menipis</span>';
+                    }
+                    return '<span class="badge bg-success">Aman</span>';
+                })
+                ->rawColumns(['status_badge'])
+                ->make(true);
+        }
+
+        $categories = \App\Models\ConsumableCategory::orderBy('name')->get();
+        $suppliers = \App\Models\Supplier::orderBy('name')->get();
+
+        $allItems = ConsumableItem::with('category', 'supplier')->orderBy('name')->get();
+
+        return view('consumable.reports', compact('categories', 'suppliers', 'allItems'));
+    }
+
+    private function generateSku(): string
+    {
+        $last = ConsumableItem::orderBy('id', 'desc')->first();
+        if (!$last || !$last->sku) {
+            return 'CSM-00000001';
+        }
+        $parts = explode('-', $last->sku);
+        $next = ((int) end($parts)) + 1;
+        return 'CSM-' . str_pad($next, 8, '0', STR_PAD_LEFT);
     }
 }

@@ -105,11 +105,46 @@
                     </div>
                 </div>
 
+                {{-- Filter Row --}}
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label fw-semibold text-muted small mb-1">Kategori</label>
+                        <select id="filter_category" class="form-select form-select-sm">
+                            <option value="">Semua Kategori</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label fw-semibold text-muted small mb-1">Supplier</label>
+                        <select id="filter_supplier" class="form-select form-select-sm">
+                            <option value="">Semua Supplier</option>
+                            @foreach($suppliers as $sup)
+                                <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label fw-semibold text-muted small mb-1">Status Stok</label>
+                        <select id="filter_stock_status" class="form-select form-select-sm">
+                            <option value="">Semua</option>
+                            <option value="low">Stok Menipis</option>
+                            <option value="out">Habis</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3 d-flex align-items-end">
+                        <button id="btnResetFilter" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> Reset Filter
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                         <table class="table table-hover align-middle" id="tableItems" style="width:100%">
                             <thead class="table-light">
                                 <tr>
-                                    <th>No</th>
+                                    <th>SKU</th>
                                     <th>Nama Barang</th>
                                     <th>Kategori</th>
                                     <th>Stok</th>
@@ -339,11 +374,24 @@
     $(document).ready(function() {
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
+        function getFilterParams() {
+            return {
+                category_id: $('#filter_category').val(),
+                supplier_id: $('#filter_supplier').val(),
+                stock_status: $('#filter_stock_status').val(),
+            };
+        }
+
         const table = $('#tableItems').DataTable({
             processing: true,
             serverSide: true,
             autoWidth: false,
-            ajax: "{{ route('consumable.items') }}",
+            ajax: {
+                url: "{{ route('consumable.items') }}",
+                data: function(d) {
+                    Object.assign(d, getFilterParams());
+                },
+            },
             columnDefs: [
                 { width: '5%', targets: 0 },
                 { width: '20%', targets: 1 },
@@ -353,7 +401,7 @@
                 { width: '20%', targets: 7 },
             ],
             columns: [
-                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                { data: 'sku', name: 'sku', defaultContent: '-' },
                 { data: 'name', name: 'name' },
                 { data: 'category.name', name: 'category.name', defaultContent: '-' },
                 { data: 'current_stock', name: 'current_stock' },
@@ -363,7 +411,7 @@
                 { data: 'action', name: 'action', orderable: false, searchable: false },
             ],
             createdRow: function(row, data, dataIndex) {
-                $(row).find('td:eq(0)').attr('data-label', 'No');
+                $(row).find('td:eq(0)').attr('data-label', 'SKU');
                 $(row).find('td:eq(1)').attr('data-label', 'Nama Barang');
                 $(row).find('td:eq(2)').attr('data-label', 'Kategori');
                 $(row).find('td:eq(3)').attr('data-label', 'Stok');
@@ -379,6 +427,29 @@
             },
             order: [[1, 'asc']],
         });
+
+        // ── Filter change events ──
+        $('#filter_category, #filter_supplier, #filter_stock_status').change(function() {
+            table.ajax.reload();
+        });
+
+        $('#btnResetFilter').click(function() {
+            $('#filter_category, #filter_supplier, #filter_stock_status').val('');
+            table.ajax.reload();
+        });
+
+        // ── Handle URL query params (from dashboard card clicks) ──
+        const urlParams = new URLSearchParams(window.location.search);
+        const stockStatus = urlParams.get('stock_status');
+        if (stockStatus) {
+            $('#filter_stock_status').val(stockStatus);
+            // Bersihkan query string dari URL tanpa reload halaman
+            if (window.history.replaceState) {
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+            table.ajax.reload();
+        }
 
         // --- Submit form barang ---
         $('#formItem').on('submit', function(e) {

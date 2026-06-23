@@ -60,6 +60,50 @@
                     </div>
                 </div>
 
+                {{-- Filter Row --}}
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Tipe</label>
+                        <select id="filter_type" class="form-select form-select-sm">
+                            <option value="">Semua Tipe</option>
+                            <option value="in">Barang Masuk</option>
+                            <option value="out">Barang Keluar</option>
+                            <option value="adjustment">Penyesuaian</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Status</label>
+                        <select id="filter_status" class="form-select form-select-sm">
+                            <option value="">Semua Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Disetujui</option>
+                            <option value="rejected">Ditolak</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Barang</label>
+                        <select id="filter_item" class="form-select form-select-sm">
+                            <option value="">Semua Barang</option>
+                            @foreach($items as $item)
+                                <option value="{{ $item->id }}">{{ $item->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Dari Tanggal</label>
+                        <input type="date" id="filter_date_start" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Sampai Tanggal</label>
+                        <input type="date" id="filter_date_end" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-2 d-flex align-items-end">
+                        <button id="btnResetFilter" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="tableTransactions" style="width:100%">
                         <thead class="table-light">
@@ -113,7 +157,8 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-muted">Qty <span class="text-danger">*</span></label>
-                            <input type="number" name="qty" class="form-control form-control-lg border-2" value="1" min="1" style="border-radius: 10px;" required>
+                            <input type="number" name="qty" class="form-control form-control-lg border-2" value="1" style="border-radius: 10px;" required>
+                            <small class="text-muted">Gunakan nilai negatif (-) untuk mengurangi stok (khusus Penyesuaian)</small>
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -148,14 +193,23 @@
     $(document).ready(function() {
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
 
-        const statusFilter = new URLSearchParams(window.location.search).get('status') || '';
+        function getFilterParams() {
+            return {
+                type: $('#filter_type').val(),
+                status: $('#filter_status').val(),
+                consumable_item_id: $('#filter_item').val(),
+                date_start: $('#filter_date_start').val(),
+                date_end: $('#filter_date_end').val(),
+            };
+        }
+
         const table = $('#tableTransactions').DataTable({
             processing: true,
             serverSide: true,
             ajax: {
                 url: "{{ route('consumable.transactions') }}",
                 data: function(d) {
-                    if (statusFilter) d.status = statusFilter;
+                    Object.assign(d, getFilterParams());
                 }
             },
             columns: [
@@ -181,6 +235,55 @@
             },
             order: [[1, 'desc']],
         });
+
+        // ── Filter change events ──
+        $('#filter_type, #filter_status, #filter_item, #filter_date_start, #filter_date_end').change(function() {
+            table.ajax.reload();
+        });
+
+        $('#btnResetFilter').click(function() {
+            $('#filter_type, #filter_status, #filter_item').val('');
+            $('#filter_date_start, #filter_date_end').val('');
+            table.ajax.reload();
+        });
+
+        // ── Handle URL query params ──
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            let needsReload = false;
+
+            const status = params.get('status');
+            if (status) {
+                $('#filter_status').val(status);
+                needsReload = true;
+            }
+
+            const itemId = params.get('consumable_item_id');
+            if (itemId) {
+                $('#filter_item').val(itemId);
+                $('select[name="consumable_item_id"]').val(itemId);
+                needsReload = true;
+            }
+
+            const type = params.get('type');
+            if (type) {
+                $('#filter_type').val(type);
+                $('select[name="type"]').val(type);
+                needsReload = true;
+            }
+
+            if (window.history.replaceState) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+
+            if (needsReload) {
+                table.ajax.reload();
+            }
+
+            if (itemId) {
+                $('#modalTransaction').modal('show');
+            }
+        })();
 
         $('#formTransaction').on('submit', function(e) {
             e.preventDefault();

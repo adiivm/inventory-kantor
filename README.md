@@ -7,9 +7,9 @@ A robust and professional asset management application built with Laravel to tra
 - **Proactive Warranty Monitoring:** Automated threshold notification for assets with critical warranty expiration (≤ 30 days) highlighted in dashboard widgets and navbar alerts.
 - **Server-Side DataTables Integration:** Lightning-fast asset filtering and searching handling thousands of records efficiently via Yajra DataTables.
 - **Mobile-Friendly Audit / Scan:** Features a dedicated layout optimized for mobile scanning or direct auditing.
-- **Consumable Inventory Management:** Full lifecycle management for office supplies (ATK) â stock tracking, min-stock alerts, import/export Excel, and stock card history per item.
+- **Consumable Inventory Management:** Full lifecycle management for office supplies (ATK) — stock tracking, min-stock alerts, import/export Excel, and stock card history per item.
 - **Consumable Distribution:** Request & approval workflow for item distribution across divisions with digital signatures and PDF proof-of-delivery.
-- **Stock-In Approval:** Dual-stage approval for incoming stock â purchasing submits, manager approves before stock is incremented, with real-time notifications.
+- **Stock-In Approval:** Dual-stage approval for incoming stock — purchasing submits, manager approves before stock is incremented, with real-time notifications.
 - **Consumable Dashboard:** "World-Class" operational dashboard with KPI cards, urgent restock table, pending approvals, outflow trend (7-day line chart), and top 5 requested items (bar chart).
 
 ## 🛠️ Tech Stack

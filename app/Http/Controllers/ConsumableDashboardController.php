@@ -16,7 +16,6 @@ class ConsumableDashboardController extends Controller
         $totalItems = ConsumableItem::count();
         $lowStockCount = ConsumableItem::whereColumn('current_stock', '<=', 'min_stock')->count();
         $pendingDistributionCount = DistributionHeader::where('status', 'pending')->count();
-        $transactionsToday = StockTransaction::whereDate('date', today())->count();
 
         // Row 2: Urgent Restock
         $urgentItems = ConsumableItem::whereColumn('current_stock', '<=', 'min_stock')
@@ -49,9 +48,10 @@ class ConsumableDashboardController extends Controller
             $outflowData->push($outflowRaw->get($date, 0));
         }
 
-        // Row 3: Top 5 Requested Items
+        // Row 3: Top 5 Requested Items (hanya approved)
         $topRequested = DistributionDetail::select('consumable_item_id', DB::raw('SUM(qty) as total_qty'))
             ->with('consumableItem')
+            ->whereHas('header', fn($q) => $q->where('status', 'approved'))
             ->groupBy('consumable_item_id')
             ->orderByDesc('total_qty')
             ->limit(5)
@@ -61,7 +61,6 @@ class ConsumableDashboardController extends Controller
             'totalItems',
             'lowStockCount',
             'pendingDistributionCount',
-            'transactionsToday',
             'urgentItems',
             'pendingDistributions',
             'outflowLabels',

@@ -15,6 +15,7 @@ use App\Exports\ProductTemplateExport;
 use App\Models\Category;
 use App\Models\Division;
 use App\Models\ProductLog;
+use App\Helpers\Activity;
 use Illuminate\Support\Facades\Storage;
 use App\Models\AuditLog;
 use App\Models\HeldBy; 
@@ -91,6 +92,7 @@ class ProductController extends Controller
             }
         }
 
+        Activity::logDelete('asset', "Aset {$product->name}", $product, $product->toArray());
         $product->delete(); // Jika tidak pakai SoftDeletes, ini akan hapus permanen
 
         return redirect()->route('product.index')->with('success', 'Data aset telah dihapus permanen!');
@@ -195,6 +197,8 @@ class ProductController extends Controller
             'new_stock' => 1,
             'user_name' => auth()->user()->name ?? 'Admin',
         ]);
+
+        Activity::logCreate('asset', "Aset {$product->name} ({$product->sku})", $product, $product->toArray());
 
         // 4. Proses Upload Banyak Gambar
         if ($request->hasFile('images')) {
@@ -362,6 +366,9 @@ class ProductController extends Controller
             'new_stock' => 1,
             'user_name' => auth()->user()->name ?? 'Admin',
         ]);
+
+        $newValues = $product->fresh()->toArray();
+        Activity::logUpdate('asset', "Aset {$product->name}", $product, $oldData, $newValues);
 
         return redirect('/products')->with('success', 'Data dan riwayat berhasil diperbarui!');
     }
@@ -597,9 +604,7 @@ class ProductController extends Controller
             'action'      => strtoupper($statusInput),
             'description' => "Status diubah ke " . strtoupper($statusInput) . ". Alasan: " . ($request->reason ?? '-'),
             'user_name'   => auth()->user()->name ?? 'Admin'
-        ]);
-
-        return redirect()->route('product.index')->with('success', 'Barang berhasil dipindahkan ke Gudang Archive!');
+        ]);        Activity::log('asset', 'archive', "Aset {$product->name} di-{$statusInput}", $product);        return redirect()->route('product.index')->with('success', 'Barang berhasil dipindahkan ke Gudang Archive!');
     }
 
     public function trash(Request $request) {
@@ -697,6 +702,8 @@ class ProductController extends Controller
             'user_name'   => auth()->user()->name ?? 'Admin'
         ]);
 
+        Activity::log('asset', 'restore', "Aset {$product->name} dikembalikan ke aktif", $product);
+
         return redirect()->route('product.index')->with('success', 'Barang berhasil dikembalikan!');
     }
 
@@ -725,6 +732,9 @@ class ProductController extends Controller
             'description' => "Menghapus salah satu foto produk",
             'user_name' => auth()->user()->name ?? 'Admin'
         ]);
+
+        $product = \App\Models\Product::find($productId);
+        Activity::log('asset', 'update', "Foto {$product->name} dihapus", $product);
 
         return response()->json(['success' => 'Foto berhasil dihapus']);
     }
@@ -785,6 +795,8 @@ class ProductController extends Controller
             $count = $import->getCount() ?? 0;
             
             if ($count > 0) {
+                Activity::log('asset', 'import', "Import {$count} produk dari Excel");
+                
                 if ($request->expectsJson()) {
                     return response()->json(['message' => "Import berhasil! {$count} produk telah ditambahkan."]);
                 }

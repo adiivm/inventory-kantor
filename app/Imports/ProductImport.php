@@ -112,7 +112,7 @@ class ProductImport implements ToModel, WithHeadingRow
     private function parseDate($date)
     {
         if (empty($date)) {
-            return now()->format('Y-m-d');
+            return null;
         }
         
         try {
@@ -122,7 +122,7 @@ class ProductImport implements ToModel, WithHeadingRow
             
             return \Carbon\Carbon::parse($date)->format('Y-m-d');
         } catch (\Exception $e) {
-            return now()->format('Y-m-d');
+            return null;
         }
     }
 }

@@ -25,27 +25,63 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-3 col-6">
                         <div class="card border-0 shadow-sm bg-primary bg-opacity-10 p-3 text-center">
-                            <div class="fs-3 fw-bold text-primary">{{ $items->count() }}</div>
+                            <div class="fs-3 fw-bold text-primary">{{ $allItems->count() }}</div>
                             <div class="text-muted small">Total Barang</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="card border-0 shadow-sm bg-success bg-opacity-10 p-3 text-center">
-                            <div class="fs-3 fw-bold text-success">{{ $items->filter(fn($i) => $i->current_stock > $i->min_stock)->count() }}</div>
+                            <div class="fs-3 fw-bold text-success">{{ $allItems->filter(fn($i) => $i->current_stock > $i->min_stock)->count() }}</div>
                             <div class="text-muted small">Stok Aman</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="card border-0 shadow-sm bg-warning bg-opacity-10 p-3 text-center">
-                            <div class="fs-3 fw-bold text-warning">{{ $items->filter(fn($i) => $i->current_stock > 0 && $i->current_stock <= $i->min_stock)->count() }}</div>
+                            <div class="fs-3 fw-bold text-warning">{{ $allItems->filter(fn($i) => $i->current_stock > 0 && $i->current_stock <= $i->min_stock)->count() }}</div>
                             <div class="text-muted small">Stok Menipis</div>
                         </div>
                     </div>
                     <div class="col-md-3 col-6">
                         <div class="card border-0 shadow-sm bg-danger bg-opacity-10 p-3 text-center">
-                            <div class="fs-3 fw-bold text-danger">{{ $items->where('current_stock', 0)->count() }}</div>
+                            <div class="fs-3 fw-bold text-danger">{{ $allItems->where('current_stock', 0)->count() }}</div>
                             <div class="text-muted small">Stok Habis</div>
                         </div>
+                    </div>
+                </div>
+
+                {{-- Filter Row --}}
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label fw-semibold text-muted small mb-1">Kategori</label>
+                        <select id="filter_category" class="form-select form-select-sm">
+                            <option value="">Semua Kategori</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label fw-semibold text-muted small mb-1">Supplier</label>
+                        <select id="filter_supplier" class="form-select form-select-sm">
+                            <option value="">Semua Supplier</option>
+                            @foreach($suppliers as $sup)
+                                <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label fw-semibold text-muted small mb-1">Status Stok</label>
+                        <select id="filter_stock_status" class="form-select form-select-sm">
+                            <option value="">Semua</option>
+                            <option value="aman">Aman</option>
+                            <option value="menipis">Menipis</option>
+                            <option value="habis">Habis</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3 d-flex align-items-end">
+                        <button id="btnResetFilter" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> Reset
+                        </button>
                     </div>
                 </div>
 
@@ -63,26 +99,7 @@
                                 <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @foreach($items as $i => $item)
-                            @php
-                                $status = 'Aman';
-                                $badge = 'bg-success';
-                                if ($item->current_stock <= 0) { $status = 'Habis'; $badge = 'bg-danger'; }
-                                elseif ($item->current_stock <= $item->min_stock) { $status = 'Menipis'; $badge = 'bg-warning text-dark'; }
-                            @endphp
-                            <tr>
-                                <td>{{ $i + 1 }}</td>
-                                <td>{{ $item->name }}</td>
-                                <td>{{ $item->category?->name ?? '-' }}</td>
-                                <td>{{ $item->current_stock }}</td>
-                                <td>{{ $item->min_stock }}</td>
-                                <td>{{ $item->unit }}</td>
-                                <td>{{ $item->supplier?->name ?? $item->supplier_name ?? '-' }}</td>
-                                <td><span class="badge {{ $badge }}">{{ $status }}</span></td>
-                            </tr>
-                            @endforeach
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -94,12 +111,47 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
-        $('#tableReport').DataTable({
+        function getFilterParams() {
+            return {
+                category_id: $('#filter_category').val(),
+                supplier_id: $('#filter_supplier').val(),
+                stock_status: $('#filter_stock_status').val(),
+            };
+        }
+
+        const table = $('#tableReport').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: "{{ route('consumable.reports') }}",
+                data: function(d) {
+                    Object.assign(d, getFilterParams());
+                }
+            },
+            columns: [
+                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                { data: 'name', name: 'name' },
+                { data: 'category_name', name: 'category.name', defaultContent: '-' },
+                { data: 'current_stock', name: 'current_stock' },
+                { data: 'min_stock', name: 'min_stock' },
+                { data: 'unit', name: 'unit' },
+                { data: 'supplier_name', name: 'supplier.name', defaultContent: '-' },
+                { data: 'status_badge', name: 'status_badge', orderable: false, searchable: false },
+            ],
             language: {
                 search: "",
                 searchPlaceholder: "Cari barang...",
             },
             order: [[1, 'asc']],
+        });
+
+        $('#filter_category, #filter_supplier, #filter_stock_status').change(function() {
+            table.ajax.reload();
+        });
+
+        $('#btnResetFilter').click(function() {
+            $('#filter_category, #filter_supplier, #filter_stock_status').val('');
+            table.ajax.reload();
         });
     });
 </script>

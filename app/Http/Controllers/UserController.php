@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use App\Enums\UserRole;
+use App\Helpers\Activity;
 
 class UserController extends Controller
 {
@@ -39,6 +40,8 @@ class UserController extends Controller
             'can_approve' => $request->boolean('can_approve'),
         ]);
 
+        Activity::logCreate('user', "User {$request->name} ({$request->email})");
+
         return back()->with('success', 'User ' . $request->name . ' berhasil ditambahkan!');
     }
 
@@ -63,7 +66,9 @@ class UserController extends Controller
             $user->password = Hash::make($request->password);
         }
 
+        $oldValues = $user->toArray();
         $user->save();
+        Activity::logUpdate('user', "User {$user->name}", $user, $oldValues, $user->fresh()->toArray());
         return back()->with('success', 'Data user berhasil diperbarui!');
     }
 
@@ -76,7 +81,9 @@ class UserController extends Controller
         }
 
         $user = User::findOrFail($id);
+        $userValues = $user->toArray();
         $user->delete();
+        Activity::logDelete('user', "User {$user->name}", $user, $userValues);
 
         return back()->with('success', 'User berhasil dihapus!');
     }

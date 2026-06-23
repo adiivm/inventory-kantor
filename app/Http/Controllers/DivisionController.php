@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Division;
+use App\Helpers\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -16,6 +17,8 @@ class DivisionController extends Controller
         ]);
 
         $division = Division::create(['name' => $request->name]);
+
+        Activity::logCreate('master', "Divisi {$division->name}", $division, $division->toArray());
 
         return response()->json($division);
     }
@@ -34,6 +37,8 @@ class DivisionController extends Controller
         }
 
         $division->delete();
+
+        Activity::logDelete('master', "Divisi {$division->name}", $division, $division->toArray());
 
         return response()->json([
             'success' => true,

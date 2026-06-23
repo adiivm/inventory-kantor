@@ -281,3 +281,27 @@ Sebelum import Excel, bisa download template kosong:
 - **Consumable Kartu Stok:** Fitur riwayat pergerakan stok per item — tombol History (🕒) di master barang, menampilkan timeline transaksi dengan tipe, qty, sisa stok, dan referensi distribusi.
 - **Approval Transaksi Masuk:** Migration tambah kolom `status` & `approved_by` di `stock_transactions`. Store set status `pending`, tidak langsung tambah stok. Approve/Reject via tombol di DataTable (hanya user `can_approve`). Notifikasi ke approver via `StockInPendingNotification` muncul di green bell bersama notifikasi distribusi.
 - **Sample Data Consumable:** Insert 30 sample items (Alat Tulis, Kertas & Print, Kebersihan, Minuman & Snack, Elektronik) + category/unit/supplier seeding via tinker.
+
+### 2026-06-22
+- **Activity Log System:** Table `activity_logs`, model, helper (`App\Helpers\Activity`), controller, view (server-side DataTable, filter module/action/date, detail modal with diff).
+- **Activity Log Integration:** `Activity::logCreate/logUpdate/logDelete/log` injected into ConsumableItem, StockTransaction, Distribution, User, Product, Category, Division, Supplier controllers.
+- **Sidebar & Route:** "Riwayat Aktivitas" link (admin only) under Master menu.
+- **Date Format Fix:** `formatValue()` in activity log detail modal — date-only fields (purchase_date, warranty_expiry_date) no longer show `, 00.00` time (manual parsing + key-based time detection).
+- **Role Dropdown Fix:** User edit modal role values changed from `Staff`/`Admin` to `staff`/`admin`.
+- **Green Bell Fix:** Notifikasi pending items now queries DB directly instead of relying on `notifications` table.
+- **PostgreSQL Fix:** `data->>'distribution_id'` → `data::jsonb->>'distribution_id'` in DistributionController.
+- **Dashboard KPI Links:** Total Barang, Stok Menipis, Distribusi Pending cards are now clickable.
+- **Remove Unused Card:** "Transaksi Hari Ini" removed from dashboard.
+- **Filter UI:** Added filter UI to consumable items, transactions, distributions, and reports pages.
+- **Tambah Stok Fix:** Tombol "Tambah Stok" di dashboard urgent restock sekarang auto-filter DataTable, pre-select modal form, dan auto-open modal untuk input stok.
+- **Top 5 Requested Items Fix:** Query hanya menghitung distribution dengan status `approved` (sebelumnya semua status termasuk rejected).
+- **Adjustment Fix:** Qty penyesuaian sekarang bisa minus (B1). `approve()` pakai `increment`/`decrement` sesuai tanda qty. Validasi: `in` minimal 1, `adjustment` != 0. View ditambah hint untuk input negatif.
+- **Notifikasi Adjustment:** Green bell sekarang juga menampilkan pending adjustment (sebelumnya hanya `type=in`). Tampilan badge "Penyesuaian" di bell dropdown. `StockInPendingNotification` pesan dibedakan untuk `in` vs `adjustment`.
+- **Dashboard KPI Cards:** Style cards consumable dashboard diselaraskan dengan asset management — background tint, left border accent, warna konsisten (Total Barang → biru `#4e73df`, Stok Menipis → oranye `#fd7e14`, Distribusi Pending → kuning `#ffc107`).
+- **Sidebar Language:** Sidebar diseragamkan ke bahasa Inggris (Laporan Asset → Asset Reports, Transaksi In/Out → Transactions, Distribusi → Distributions, Laporan Consumable → Consumable Reports, Master Supplier → Suppliers, Riwayat Aktivitas → Activity Logs).
+- **Master Data Search & Scroll:** Tiap tabel master data (Kategori, Divisi, Pemegang, Lokasi, Kategori Consumable, Satuan Consumable) ditambahkan kolom search filter by nama, dibatasi tampil ~15 baris dengan scroll.
+- **Import Date Fix:** `parseDate()` di `ProductImport` tidak lagi return `now()` untuk tanggal kosong — sekarang return `null`, sehingga produk tanpa `warranty_expiry_date` tidak masuk bell kuning.
+- **Activity Log Import:** Produk & Consumable import sekarang tercatat di activity log (`Activity::log('asset'/'consumable', 'import', ...)`).
+- **SKU Consumable:** Kolom `sku` (format `CSM-00000001`) ditambahkan ke `consumable_items`. Auto-generate di controller store & import. Ditampilkan di DataTable master barang.
+- **No Column Removed:** Kolom "No" (DT_RowIndex) dihapus dari DataTable consumable items — konsisten dengan product yang juga tidak pakai nomor baris.
+- **Supplier Import Excel:** Fitur download template & import Excel untuk Supplier. File: `SupplierImport`, `SupplierTemplateExport`. Route: `suppliers.import`, `suppliers.import_template`.

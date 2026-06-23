@@ -181,11 +181,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/consumable/distributions/{id}/signature', [DistributionController::class, 'saveSignature'])->name('consumable.distributions.signature');
     Route::get('/consumable/distributions/{id}', [DistributionController::class, 'show']);
     Route::get('/consumable/distributions/{id}/print', [DistributionController::class, 'printPdf'])->name('consumable.distributions.print');
-    Route::get('/consumable/reports', function () {
-        return view('consumable.reports', [
-            'items' => \App\Models\ConsumableItem::with('category', 'supplier')->orderBy('name')->get(),
-        ]);
-    })->name('consumable.reports');
+    Route::get('/consumable/reports', [ConsumableItemController::class, 'report'])->name('consumable.reports');
     Route::post('/consumable/reports/export', function () {
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\ConsumableStockReportExport,
@@ -194,7 +190,7 @@ Route::middleware('auth')->group(function () {
     })->name('consumable.reports.export');
 
     Route::get('/consumable/distributions/verify/{id}', function ($id) {
-        $header = App\Models\DistributionHeader::with('details.consumableItem')->findOrFail($id);
+        $header = App\Models\DistributionHeader::with('details.consumableItem', 'division', 'approver')->findOrFail($id);
         return view('consumable.pdf_bukti', compact('header'));
     })->name('distribution.verify');
 
@@ -204,12 +200,18 @@ Route::middleware('auth')->group(function () {
         return response()->json(['success' => true]);
     })->name('notifications.read');
 
+    /** --- ACTIVITY LOGS --- **/
+    Route::get('/activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity.logs');
+    Route::get('/activity-logs/{id}', [App\Http\Controllers\ActivityLogController::class, 'show']);
+
     /** --- SUPPLIER MANAGEMENT --- **/
     Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
     Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
     Route::get('/suppliers/{id}/edit', [SupplierController::class, 'edit']);
     Route::put('/suppliers/{id}', [SupplierController::class, 'update'])->name('suppliers.update');
     Route::delete('/suppliers/{id}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
+    Route::post('/suppliers/import', [SupplierController::class, 'import'])->name('suppliers.import');
+    Route::get('/suppliers/import-template', [SupplierController::class, 'downloadTemplate'])->name('suppliers.import_template');
     Route::get('/api/suppliers', [SupplierController::class, 'getAll']);
     Route::post('/api/suppliers', [SupplierController::class, 'store']);
 

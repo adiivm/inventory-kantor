@@ -374,7 +374,7 @@
 
                         @if($jmlStockIn > 0)
                         <div class="px-2 py-2 border-bottom {{ $jmlDistribusi > 0 ? 'mt-2' : '' }}">
-                            <span class="fw-bold text-primary small"><i class="bi bi-box-arrow-in-right me-1"></i> Transaksi Masuk</span>
+                            <span class="fw-bold text-primary small"><i class="bi bi-box-arrow-in-right me-1"></i> Transaksi Masuk & Penyesuaian</span>
                         </div>
                         @foreach($stockInNotifications as $notif)
                         <a href="{{ route('consumable.transactions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom">
@@ -383,7 +383,12 @@
                                     <strong class="d-block" style="font-size: 0.8rem;">
                                         {{ $notif->data['item_name'] ?? '-' }}
                                     </strong>
-                                    <span class="text-muted" style="font-size: 0.7rem;">{{ $notif->data['qty'] ?? '' }} barang</span>
+                                    <span class="text-muted" style="font-size: 0.7rem;">
+                                        {{ $notif->data['qty'] ?? '' }}
+                                        @if(($notif->data['type'] ?? '') === 'adjustment')
+                                            <span class="badge bg-secondary">Penyesuaian</span>
+                                        @endif
+                                    </span>
                                 </div>
                                 <small class="text-muted" style="font-size: 0.65rem;">{{ $notif->created_at->diffForHumans() }}</small>
                             </div>

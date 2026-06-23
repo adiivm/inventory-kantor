@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\ConsumableItem;
 use App\Models\StockTransaction;
+use App\Helpers\Activity;
 use App\Notifications\LowStockNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -21,6 +22,22 @@ class StockTransactionController extends Controller
 
             if ($request->filled('status')) {
                 $query->where('status', $request->status);
+            }
+
+            if ($request->filled('type')) {
+                $query->where('type', $request->type);
+            }
+
+            if ($request->filled('consumable_item_id')) {
+                $query->where('consumable_item_id', $request->consumable_item_id);
+            }
+
+            if ($request->filled('date_start')) {
+                $query->whereDate('date', '>=', $request->date_start);
+            }
+
+            if ($request->filled('date_end')) {
+                $query->whereDate('date', '<=', $request->date_end);
             }
 
             return DataTables::of($query)
@@ -71,7 +88,17 @@ class StockTransactionController extends Controller
         $validator = Validator::make($request->all(), [
             'consumable_item_id' => 'required|exists:consumable_items,id',
             'type' => 'required|in:in,adjustment',
-            'qty' => 'required|integer|min:1',
+            'qty' => [
+                'required', 'integer',
+                function ($attr, $value, $fail) use ($request) {
+                    if ($request->type === 'in' && $value < 1) {
+                        $fail('Qty barang masuk minimal 1.');
+                    }
+                    if ($request->type === 'adjustment' && $value == 0) {
+                        $fail('Qty penyesuaian tidak boleh 0.');
+                    }
+                },
+            ],
             'unit_price' => 'nullable|integer|min:0',
             'reference_number' => 'nullable|string|max:255',
             'date' => 'required|date',
@@ -90,12 +117,15 @@ class StockTransactionController extends Controller
             'reference_number', 'date', 'notes',
         ]) + ['status' => 'pending']);
 
+        $item = ConsumableItem::find($request->consumable_item_id);
+
         // Kirim notifikasi ke approvers
         $approvers = User::where('can_approve', true)->get();
         if ($approvers->isNotEmpty()) {
-            $item = ConsumableItem::find($request->consumable_item_id);
             Notification::send($approvers, new \App\Notifications\StockInPendingNotification($tx, $item));
         }
+
+        Activity::logCreate('consumable', "Transaksi {$tx->type} - {$item->name} ({$tx->qty})", $tx, $tx->toArray());
 
         return response()->json([
             'success' => true,
@@ -123,7 +153,18 @@ class StockTransactionController extends Controller
             ]);
 
             $item = ConsumableItem::findOrFail($tx->consumable_item_id);
-            $item->increment('current_stock', $tx->qty);
+
+            if ($tx->qty > 0) {
+                $item->increment('current_stock', $tx->qty);
+            } elseif ($tx->qty < 0) {
+                $item->decrement('current_stock', abs($tx->qty));
+            }
+
+            $verb = $tx->type === 'adjustment'
+                ? ($tx->qty > 0 ? 'Stok ditambah' : 'Stok dikurangi')
+                : 'Stok bertambah';
+
+            Activity::log('consumable', 'approve', "Transaksi {$tx->reference_number} disetujui - {$item->name}", $tx);
 
             DB::commit();
 
@@ -135,7 +176,7 @@ class StockTransactionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Transaksi disetujui. Stok bertambah.',
+                'message' => 'Transaksi disetujui. ' . $verb . '.',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -162,6 +203,8 @@ class StockTransactionController extends Controller
             'status' => 'rejected',
             'approved_by' => auth()->id(),
         ]);
+
+        Activity::log('consumable', 'reject', "Transaksi {$tx->reference_number} ditolak", $tx);
 
         return response()->json([
             'success' => true,

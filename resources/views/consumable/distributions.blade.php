@@ -80,6 +80,41 @@
                     </div>
                 </div>
 
+                {{-- Filter Row --}}
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Status</label>
+                        <select id="filter_status" class="form-select form-select-sm">
+                            <option value="">Semua Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Disetujui</option>
+                            <option value="rejected">Ditolak</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Divisi</label>
+                        <select id="filter_division" class="form-select form-select-sm">
+                            <option value="">Semua Divisi</option>
+                            @foreach($divisions as $div)
+                                <option value="{{ $div->id }}">{{ $div->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Dari Tanggal</label>
+                        <input type="date" id="filter_date_start" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-semibold text-muted small mb-1">Sampai Tanggal</label>
+                        <input type="date" id="filter_date_end" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-2 d-flex align-items-end">
+                        <button id="btnResetFilter" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle" id="tableDistributions" style="width:100%">
                         <thead class="table-light">
@@ -310,14 +345,22 @@
         let sigAdminPad = null, sigReceiverPad = null;
 
         // --- DataTable ---
-        const statusFilter = new URLSearchParams(window.location.search).get('status') || '';
+        function getFilterParams() {
+            return {
+                status: $('#filter_status').val(),
+                division_id: $('#filter_division').val(),
+                date_start: $('#filter_date_start').val(),
+                date_end: $('#filter_date_end').val(),
+            };
+        }
+
         const table = $('#tableDistributions').DataTable({
             processing: true,
             serverSide: true,
             ajax: {
                 url: "{{ route('consumable.distributions') }}",
                 data: function(d) {
-                    if (statusFilter) d.status = statusFilter;
+                    Object.assign(d, getFilterParams());
                 }
             },
             columns: [
@@ -326,7 +369,11 @@
                 { data: 'requester_name', name: 'requester_name' },
                 { data: 'division.name', name: 'division.name', defaultContent: '-' },
                 { data: 'created_at', name: 'created_at',
-                    render: function(data) { return data ? data.split(' ')[0] : '-'; }
+                    render: function(data) {
+                        if (!data) return '-';
+                        const d = new Date(data);
+                        return isNaN(d) ? data.split('T')[0] : d.toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
+                    }
                 },
                 { data: 'status_badge', name: 'status_badge', orderable: false, searchable: false },
                 { data: 'action', name: 'action', orderable: false, searchable: false },
@@ -344,6 +391,30 @@
             },
             order: [[1, 'desc']],
         });
+
+        // ── Filter change events ──
+        $('#filter_status, #filter_division, #filter_date_start, #filter_date_end').change(function() {
+            table.ajax.reload();
+        });
+
+        $('#btnResetFilter').click(function() {
+            $('#filter_status, #filter_division').val('');
+            $('#filter_date_start, #filter_date_end').val('');
+            table.ajax.reload();
+        });
+
+        // ── Handle URL query params ──
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const status = params.get('status');
+            if (status) {
+                $('#filter_status').val(status);
+                if (window.history.replaceState) {
+                    window.history.replaceState({}, '', window.location.pathname);
+                }
+                table.ajax.reload();
+            }
+        })();
 
         // --- Dynamic Rows ---
         function addRow(data) {
@@ -420,7 +491,8 @@
                 $('#detailRef').text(data.reference_number);
                 $('#detailRequester').text(data.requester_name);
                 $('#detailDivision').text(data.division?.name || '-');
-                $('#detailDate').text(data.created_at ? data.created_at.split(' ')[0] : '-');
+                const d = data.created_at ? new Date(data.created_at) : null;
+                $('#detailDate').text(d && !isNaN(d) ? d.toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : '-');
 
                 const statusMap = { pending: 'Pending', approved: 'Disetujui', rejected: 'Ditolak' };
                 const badges = { pending: 'bg-warning text-dark', approved: 'bg-success', rejected: 'bg-danger' };

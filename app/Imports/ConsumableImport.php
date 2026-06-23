@@ -32,6 +32,7 @@ class ConsumableImport implements ToModel, WithHeadingRow
         }
 
         return new ConsumableItem([
+            'sku' => $this->generateSku(),
             'category_id' => $categoryId,
             'name' => $row['name'] ?? $row['nama'] ?? $row['nama_barang'] ?? 'Unnamed Item',
             'unit' => $unitName,
@@ -53,5 +54,16 @@ class ConsumableImport implements ToModel, WithHeadingRow
             ['description' => "Kategori dari import Excel"]
         );
         return $category->id;
+    }
+
+    private function generateSku(): string
+    {
+        $last = ConsumableItem::orderBy('id', 'desc')->first();
+        if (!$last || !$last->sku) {
+            return 'CSM-00000001';
+        }
+        $parts = explode('-', $last->sku);
+        $next = ((int) end($parts)) + 1;
+        return 'CSM-' . str_pad($next, 8, '0', STR_PAD_LEFT);
     }
 }

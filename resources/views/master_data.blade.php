@@ -7,45 +7,24 @@
     </div>
 
     <div class="row g-4">
-        {{-- KATEGORI --}}
-        <div class="col-lg-6">
-            <div class="card p-3 h-100">
-                <h5 class="fw-bold mb-3"><i class="bi bi-tag-fill me-2 text-primary"></i>Kategori</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th class="text-end" style="width:80px">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($categories as $cat)
-                            <tr>
-                                <td>{{ $cat->name }}</td>
-                                <td class="text-end">
-                                    @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('categories', {{ $cat->id }}, '{{ $cat->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada kategori</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        @php
+            $tables = [
+                ['id' => 'categories', 'label' => 'Kategori', 'icon' => 'bi-tag-fill', 'color' => 'primary', 'data' => $categories],
+                ['id' => 'divisions', 'label' => 'Divisi', 'icon' => 'bi-building', 'color' => 'success', 'data' => $divisions],
+                ['id' => 'held_bies', 'label' => 'Pemegang', 'icon' => 'bi-person-badge', 'color' => 'warning', 'data' => $held_bies],
+                ['id' => 'locations', 'label' => 'Lokasi', 'icon' => 'bi-geo-alt', 'color' => 'danger', 'data' => $locations],
+                ['id' => 'consumable-categories', 'label' => 'Kategori Consumable', 'icon' => 'bi-folder', 'color' => 'info', 'data' => $consumableCategories],
+                ['id' => 'consumable-units', 'label' => 'Satuan Consumable', 'icon' => 'bi-rulers', 'color' => 'secondary', 'data' => $consumableUnits],
+            ];
+        @endphp
 
-        {{-- DIVISI --}}
+        @foreach($tables as $t)
         <div class="col-lg-6">
             <div class="card p-3 h-100">
-                <h5 class="fw-bold mb-3"><i class="bi bi-building me-2 text-success"></i>Divisi</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                <h5 class="fw-bold mb-3"><i class="bi {{ $t['icon'] }} me-2 text-{{ $t['color'] }}"></i>{{ $t['label'] }}</h5>
+                <input type="text" class="form-control form-control-sm mb-2 master-search" data-target="{{ $t['id'] }}" placeholder="Cari {{ $t['label'] }}...">
+                <div class="table-responsive master-table-wrapper">
+                    <table class="table table-hover align-middle mb-0" id="table-{{ $t['id'] }}">
                         <thead>
                             <tr>
                                 <th>Nama</th>
@@ -53,157 +32,26 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($divisions as $div)
+                            @forelse($t['data'] as $row)
                             <tr>
-                                <td>{{ $div->name }}</td>
+                                <td class="master-name">{{ $row->name }}</td>
                                 <td class="text-end">
                                     @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('divisions', {{ $div->id }}, '{{ $div->name }}')">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('{{ $t['id'] }}', {{ $row->id }}, '{{ $row->name }}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     @endif
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada divisi</td></tr>
+                            <tr class="empty-row"><td colspan="2" class="text-muted text-center py-3">Belum ada data</td></tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
-
-        {{-- PEMEGANG --}}
-        <div class="col-lg-6">
-            <div class="card p-3 h-100">
-                <h5 class="fw-bold mb-3"><i class="bi bi-person-badge me-2 text-warning"></i>Pemegang</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th class="text-end" style="width:80px">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($held_bies as $h)
-                            <tr>
-                                <td>{{ $h->name }}</td>
-                                <td class="text-end">
-                                    @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('held_bies', {{ $h->id }}, '{{ $h->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada pemegang</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        {{-- LOKASI --}}
-        <div class="col-lg-6">
-            <div class="card p-3 h-100">
-                <h5 class="fw-bold mb-3"><i class="bi bi-geo-alt me-2 text-danger"></i>Lokasi</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th class="text-end" style="width:80px">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($locations as $l)
-                            <tr>
-                                <td>{{ $l->name }}</td>
-                                <td class="text-end">
-                                    @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('locations', {{ $l->id }}, '{{ $l->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada lokasi</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        {{-- KATEGORI CONSUMABLE --}}
-        <div class="col-lg-6">
-            <div class="card p-3 h-100">
-                <h5 class="fw-bold mb-3"><i class="bi bi-folder me-2 text-info"></i>Kategori Consumable</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th class="text-end" style="width:80px">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($consumableCategories as $cc)
-                            <tr>
-                                <td>{{ $cc->name }}</td>
-                                <td class="text-end">
-                                    @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('consumable-categories', {{ $cc->id }}, '{{ $cc->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada kategori consumable</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        {{-- SATUAN CONSUMABLE --}}
-        <div class="col-lg-6">
-            <div class="card p-3 h-100">
-                <h5 class="fw-bold mb-3"><i class="bi bi-rulers me-2 text-secondary"></i>Satuan Consumable</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nama</th>
-                                <th class="text-end" style="width:80px">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($consumableUnits as $cu)
-                            <tr>
-                                <td>{{ $cu->name }}</td>
-                                <td class="text-end">
-                                    @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('consumable-units', {{ $cu->id }}, '{{ $cu->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="2" class="text-muted text-center py-3">Belum ada satuan consumable</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        @endforeach
     </div>
 </div>
 
@@ -242,6 +90,41 @@ function hapusMaster(type, id, name) {
         }
     });
 }
+
+document.querySelectorAll('.master-search').forEach(function(input) {
+    input.addEventListener('keyup', function() {
+        var target = this.getAttribute('data-target');
+        var q = this.value.toLowerCase().trim();
+        var table = document.getElementById('table-' + target);
+        var rows = table.querySelectorAll('tbody tr:not(.empty-row)');
+        var visible = 0;
+        rows.forEach(function(row) {
+            var name = row.querySelector('.master-name');
+            if (!name) return;
+            var match = name.textContent.toLowerCase().includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        // Show/hide empty message
+        var empty = table.querySelector('.empty-row');
+        if (empty) {
+            empty.style.display = rows.length === 0 || visible === 0 ? '' : 'none';
+        }
+    });
+});
 </script>
+<style>
+.master-table-wrapper {
+    max-height: 540px;
+    overflow-y: auto;
+}
+.master-table-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+.master-table-wrapper::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+</style>
 @endpush
 @endsection
