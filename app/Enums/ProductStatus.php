@@ -4,17 +4,17 @@ namespace App\Enums;
 
 enum ProductStatus: string
 {
-    case Active   = 'active';
-    case Archive  = 'archive';
-    case Sold     = 'jual';
+    case Active = 'active';
+    case Archive = 'archive';
+    case Sold = 'jual';
     case Destroyed = 'destroy';
 
     public function label(): string
     {
         return match ($this) {
-            self::Active    => 'Active',
-            self::Archive   => 'Archived',
-            self::Sold      => 'Sold',
+            self::Active => 'Active',
+            self::Archive => 'Archived',
+            self::Sold => 'Sold',
             self::Destroyed => 'Destroyed',
         };
     }

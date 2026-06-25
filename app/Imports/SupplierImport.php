@@ -3,28 +3,31 @@
 namespace App\Imports;
 
 use App\Models\Supplier;
+use Maatwebsite\Excel\Concerns\Importable;
+use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\Importable;
 
-class SupplierImport implements ToModel, WithHeadingRow, SkipsOnError
+class SupplierImport implements SkipsOnError, ToModel, WithHeadingRow
 {
     use Importable;
 
     protected $count = 0;
+
     protected $errors = [];
 
     public function model(array $row)
     {
         $name = trim($row['name'] ?? '');
         if (empty($name)) {
-            $this->errors[] = 'Baris ke-' . ($this->count + 2) . ': Nama supplier wajib diisi.';
+            $this->errors[] = 'Baris ke-'.($this->count + 2).': Nama supplier wajib diisi.';
+
             return null;
         }
 
         if (Supplier::where('name', $name)->exists()) {
             $this->errors[] = "Supplier '{$name}' sudah ada, dilewati.";
+
             return null;
         }
 

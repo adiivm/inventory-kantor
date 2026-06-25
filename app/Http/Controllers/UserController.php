@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use App\Enums\UserRole;
 use App\Helpers\Activity;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -19,6 +19,7 @@ class UserController extends Controller
         Gate::authorize('admin-only');
 
         $users = User::all();
+
         return view('users_index', compact('users')); // Pastikan file blade namanya users_index.blade.php
     }
 
@@ -26,23 +27,23 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
-            'role'     => ['required', Rule::enum(UserRole::class)],
+            'role' => ['required', Rule::enum(UserRole::class)],
         ]);
 
         User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
+            'name' => $request->name,
+            'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role'     => $request->role,
+            'role' => $request->role,
             'can_approve' => $request->boolean('can_approve'),
         ]);
 
         Activity::logCreate('user', "User {$request->name} ({$request->email})");
 
-        return back()->with('success', 'User ' . $request->name . ' berhasil ditambahkan!');
+        return back()->with('success', 'User '.$request->name.' berhasil ditambahkan!');
     }
 
     // Update User & Ganti Password Orang Lain
@@ -51,14 +52,14 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'name'  => 'required',
+            'name' => 'required',
             'email' => 'required|email|unique:users,email,'.$id,
-            'role'  => ['required', Rule::enum(UserRole::class)],
+            'role' => ['required', Rule::enum(UserRole::class)],
         ]);
 
-        $user->name  = $request->name;
+        $user->name = $request->name;
         $user->email = $request->email;
-        $user->role  = $request->role;
+        $user->role = $request->role;
         $user->can_approve = $request->boolean('can_approve');
 
         // Jika kotak password di modal edit diisi, baru kita ganti
@@ -69,6 +70,7 @@ class UserController extends Controller
         $oldValues = $user->toArray();
         $user->save();
         Activity::logUpdate('user', "User {$user->name}", $user, $oldValues, $user->fresh()->toArray());
+
         return back()->with('success', 'Data user berhasil diperbarui!');
     }
 

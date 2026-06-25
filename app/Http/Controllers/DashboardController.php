@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Product;  // <-- Pastikan ini ada
-use App\Models\User;     // <-- Pastikan ini ada
-use App\Models\Category; // <-- Pastikan ini ada
+use App\Models\Category;  // <-- Pastikan ini ada
+use App\Models\Product;     // <-- Pastikan ini ada
+use App\Models\User; // <-- Pastikan ini ada
 use Illuminate\Support\Facades\Auth; // <-- Untuk Auth::user()
 
 class DashboardController extends Controller
@@ -17,7 +16,7 @@ class DashboardController extends Controller
         $totalBarang = Product::active()->sum('stock');
 
         $totalUser = User::count();
-        
+
         // 2. Menghitung JUMLAH JENIS BARANG yang stok totalnya (kolom stock) menipis (<= 5)
         $stokMenipis = Product::active()->stockLow()->count();
 
@@ -26,10 +25,10 @@ class DashboardController extends Controller
 
         // 4. Total UNIT yang SEDANG SERVIS (Repair)
         $barangServis = Product::active()->condition('repair')->count();
-        
+
         // 5. Total UNIT yang RUSAK (Broken)
         $barangRusak = Product::active()->condition('broken')->count();
-        
+
         // 6. Menghitung barang yang benar-benar HABIS (Total stoknya 0)
         $stokHabis = Product::active()->where('stock', '<=', 0)->count();
 
@@ -42,12 +41,12 @@ class DashboardController extends Controller
             ->value('total') ?? 0;
 
         // 9. Data Grafik (Hanya barang aktif)
-        $chartData = \App\Models\Category::withCount(['products' => function($query) {
+        $chartData = Category::withCount(['products' => function ($query) {
             $query->active();
         }])->get();
 
-        $labels = $chartData->pluck('name'); 
-        $data   = $chartData->pluck('products_count'); 
+        $labels = $chartData->pluck('name');
+        $data = $chartData->pluck('products_count');
 
         // 10. Garansi Kritis (<= 30 hari)
         $garansiKritis = Product::active()->warrantyCritical()->count();
@@ -56,8 +55,8 @@ class DashboardController extends Controller
         $garansiExpired = Product::active()->warrantyExpired()->count();
 
         return view('dashboard', compact(
-            'totalBarang', 'totalUser', 'stokMenipis', 'barangReady', 
-            'barangServis', 'barangRusak', 'stokHabis', 'barangArchive', 
+            'totalBarang', 'totalUser', 'stokMenipis', 'barangReady',
+            'barangServis', 'barangRusak', 'stokHabis', 'barangArchive',
             'totalNilaiAsset', 'labels', 'data', 'garansiKritis', 'garansiExpired'
         ));
     }

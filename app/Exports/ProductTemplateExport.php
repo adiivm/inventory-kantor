@@ -16,7 +16,7 @@ class ProductTemplateExport implements FromCollection, WithHeadings
     {
         return [
             'sku', 'name', 'category', 'division', 'held_by', 'location',
-            'supplier', 'price', 'condition', 'purchase_date', 'warranty_expiry_date'
+            'supplier', 'price', 'condition', 'purchase_date', 'warranty_expiry_date',
         ];
     }
 }

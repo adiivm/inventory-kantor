@@ -2,14 +2,14 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\DistributionHeader;
+use App\Models\Product;
+use App\Models\StockTransaction;
+use App\Models\User;
+use App\Observers\ProductObserver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
-use App\Models\User;
-use App\Models\Product;
-use App\Models\DistributionHeader;
-use App\Models\StockTransaction;
-use App\Observers\ProductObserver;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -92,11 +92,11 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('garansiKritis', $garansiKritis)
-                 ->with('jmlGaransiKritis', $jmlGaransiKritis)
-                 ->with('distribusiNotifications', $distribusiNotifications)
-                 ->with('jmlDistribusi', $jmlDistribusi)
-                 ->with('stockInNotifications', $stockInNotifications)
-                 ->with('jmlStockIn', $jmlStockIn);
+                ->with('jmlGaransiKritis', $jmlGaransiKritis)
+                ->with('distribusiNotifications', $distribusiNotifications)
+                ->with('jmlDistribusi', $jmlDistribusi)
+                ->with('stockInNotifications', $stockInNotifications)
+                ->with('jmlStockIn', $jmlStockIn);
         });
     }
 }

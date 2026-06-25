@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProductCondition;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use App\Enums\ProductCondition;
 
 class StoreProductRequest extends FormRequest
 {
@@ -17,13 +17,13 @@ class StoreProductRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sku'                  => 'required|unique:products,sku',
-            'name'                 => 'required',
-            'condition'            => ['required', Rule::enum(ProductCondition::class)],
-            'price'                => 'nullable|integer',
-            'images.*'             => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
+            'sku' => 'required|unique:products,sku',
+            'name' => 'required',
+            'condition' => ['required', Rule::enum(ProductCondition::class)],
+            'price' => 'nullable|integer',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
             'warranty_expiry_date' => 'nullable|date',
-            'purchase_date'        => 'nullable|date',
+            'purchase_date' => 'nullable|date',
         ];
     }
 

@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Helpers\Activity;
 use App\Models\ConsumableItem;
 use App\Models\StockTransaction;
-use App\Helpers\Activity;
+use App\Models\User;
 use App\Notifications\LowStockNotification;
+use App\Notifications\StockInPendingNotification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 
 class StockTransactionController extends Controller
@@ -49,13 +50,15 @@ class StockTransactionController extends Controller
                         'adjustment' => 'badge bg-secondary',
                     ];
                     $class = $map[$row->type] ?? 'badge bg-secondary';
-                    return "<span class='{$class}'>" . ucfirst($row->type) . "</span>";
+
+                    return "<span class='{$class}'>".ucfirst($row->type).'</span>';
                 })
                 ->editColumn('qty', function ($row) {
                     $sign = $row->type === 'in' ? '+' : ($row->type === 'out' ? '-' : '');
-                    return $sign . $row->qty;
+
+                    return $sign.$row->qty;
                 })
-                ->editColumn('date', fn($row) => $row->date->format('d/m/Y'))
+                ->editColumn('date', fn ($row) => $row->date->format('d/m/Y'))
                 ->addColumn('status_badge', function ($row) {
                     $map = [
                         'pending' => 'badge bg-warning text-dark',
@@ -63,15 +66,17 @@ class StockTransactionController extends Controller
                         'rejected' => 'badge bg-danger',
                     ];
                     $class = $map[$row->status] ?? 'badge bg-secondary';
-                    return "<span class='{$class}'>" . ucfirst($row->status) . '</span>';
+
+                    return "<span class='{$class}'>".ucfirst($row->status).'</span>';
                 })
                 ->addColumn('action', function ($row) {
                     if ($row->status === 'pending' && auth()->check() && auth()->user()->can_approve) {
                         return '
-                            <button class="btn btn-sm btn-success btn-approve-stock" data-id="' . $row->id . '"><i class="bi bi-check-lg"></i></button>
-                            <button class="btn btn-sm btn-danger btn-reject-stock" data-id="' . $row->id . '"><i class="bi bi-x-lg"></i></button>
+                            <button class="btn btn-sm btn-success btn-approve-stock" data-id="'.$row->id.'"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-sm btn-danger btn-reject-stock" data-id="'.$row->id.'"><i class="bi bi-x-lg"></i></button>
                         ';
                     }
+
                     return '-';
                 })
                 ->rawColumns(['type', 'status_badge', 'action'])
@@ -122,7 +127,7 @@ class StockTransactionController extends Controller
         // Kirim notifikasi ke approvers
         $approvers = User::where('can_approve', true)->get();
         if ($approvers->isNotEmpty()) {
-            Notification::send($approvers, new \App\Notifications\StockInPendingNotification($tx, $item));
+            Notification::send($approvers, new StockInPendingNotification($tx, $item));
         }
 
         Activity::logCreate('consumable', "Transaksi {$tx->type} - {$item->name} ({$tx->qty})", $tx, $tx->toArray());
@@ -135,14 +140,14 @@ class StockTransactionController extends Controller
 
     public function approve($id)
     {
-        if (!auth()->user()->can_approve) {
+        if (! auth()->user()->can_approve) {
             return response()->json(['success' => false, 'message' => 'Tidak memiliki wewenang.'], 403);
         }
 
         $tx = StockTransaction::findOrFail($id);
 
         if ($tx->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => 'Transaksi sudah ' . $tx->status . '.'], 422);
+            return response()->json(['success' => false, 'message' => 'Transaksi sudah '.$tx->status.'.'], 422);
         }
 
         DB::beginTransaction();
@@ -176,27 +181,28 @@ class StockTransactionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Transaksi disetujui. ' . $verb . '.',
+                'message' => 'Transaksi disetujui. '.$verb.'.',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal approve: ' . $e->getMessage(),
+                'message' => 'Gagal approve: '.$e->getMessage(),
             ], 500);
         }
     }
 
     public function reject($id)
     {
-        if (!auth()->user()->can_approve) {
+        if (! auth()->user()->can_approve) {
             return response()->json(['success' => false, 'message' => 'Tidak memiliki wewenang.'], 403);
         }
 
         $tx = StockTransaction::findOrFail($id);
 
         if ($tx->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => 'Transaksi sudah ' . $tx->status . '.'], 422);
+            return response()->json(['success' => false, 'message' => 'Transaksi sudah '.$tx->status.'.'], 422);
         }
 
         $tx->update([

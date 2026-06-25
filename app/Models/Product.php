@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
 {
     protected $fillable = [
-        'sku', 'name', 'image', 'category_id', 'division_id', 
+        'sku', 'name', 'image', 'category_id', 'division_id',
         'stock', 'price', 'condition',
         'held_by_id', 'location_id', 'usage_type', 'last_audited_at',
-        'purchase_date', 'is_active', 'warranty_expiry_date', 'supplier_id'
+        'purchase_date', 'is_active', 'warranty_expiry_date', 'supplier_id',
     ];
 
     protected $casts = [
@@ -50,16 +50,17 @@ class Product extends Model
     }
 
     // Tambahkan ini di dalam class Product
-    public function logs() {
+    public function logs()
+    {
         return $this->hasMany(ProductLog::class);
     }
 
     public function auditLogs()
     {
         // Mengambil history, urutkan dari yang terbaru
-        return $this->hasMany(\App\Models\AuditLog::class, 'product_id')->latest();
+        return $this->hasMany(AuditLog::class, 'product_id')->latest();
     }
-        
+
     public function images()
     {
         return $this->hasMany(ProductImage::class);
@@ -111,12 +112,12 @@ class Product extends Model
     // Fungsi ini otomatis mengecek status warna: Hijau, Kuning, atau Abu-abu
     public function getWarrantyColorAttribute()
     {
-        if (!$this->warranty_expiry_date) {
+        if (! $this->warranty_expiry_date) {
             return 'secondary'; // Tidak ada garansi -> Abu-abu
         }
 
-        $expiry = \Carbon\Carbon::parse($this->warranty_expiry_date)->endOfDay();
-        $now = \Carbon\Carbon::now();
+        $expiry = Carbon::parse($this->warranty_expiry_date)->endOfDay();
+        $now = Carbon::now();
 
         if ($expiry->isPast()) {
             return 'danger'; // Sudah lewat -> Merah
@@ -127,4 +128,3 @@ class Product extends Model
         }
     }
 }
-

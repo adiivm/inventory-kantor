@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('products', function (Blueprint $table) {
             // Kita tambahkan kolom condition setelah kolom price (atau sesuaikan)
-            $table->string('condition')->nullable()->after('price'); 
+            $table->string('condition')->nullable()->after('price');
         });
     }
 

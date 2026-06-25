@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ConsumableTemplateExport;
+use App\Helpers\Activity;
+use App\Imports\ConsumableImport;
 use App\Models\ConsumableCategory;
 use App\Models\ConsumableItem;
 use App\Models\ConsumableUnit;
 use App\Models\DistributionHeader;
 use App\Models\StockTransaction;
 use App\Models\Supplier;
-use App\Helpers\Activity;
-use App\Imports\ConsumableImport;
-use App\Exports\ConsumableTemplateExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
 
 class ConsumableItemController extends Controller
@@ -34,7 +35,7 @@ class ConsumableItemController extends Controller
             if ($request->filled('stock_status')) {
                 if ($request->stock_status === 'low') {
                     $query->where('current_stock', '>', 0)
-                          ->whereColumn('current_stock', '<=', 'min_stock');
+                        ->whereColumn('current_stock', '<=', 'min_stock');
                 } elseif ($request->stock_status === 'out') {
                     $query->where('current_stock', '<=', 0);
                 }
@@ -48,6 +49,7 @@ class ConsumableItemController extends Controller
                     } elseif ($row->current_stock <= $row->min_stock) {
                         $badge = 'warning text-dark';
                     }
+
                     return "<span class='badge bg-{$badge}'>{$row->current_stock}</span>";
                 })
                 ->addColumn('supplier_name', function ($row) {
@@ -55,9 +57,9 @@ class ConsumableItemController extends Controller
                 })
                 ->addColumn('action', function ($row) {
                     return '
-                        <a href="' . route('consumable.items.history', $row->id) . '" class="btn btn-sm btn-info"><i class="bi bi-clock-history"></i></a>
-                        <button class="btn btn-sm btn-warning btn-edit" data-id="' . $row->id . '"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-danger btn-delete" data-id="' . $row->id . '"><i class="bi bi-trash"></i></button>
+                        <a href="'.route('consumable.items.history', $row->id).'" class="btn btn-sm btn-info"><i class="bi bi-clock-history"></i></a>
+                        <button class="btn btn-sm btn-warning btn-edit" data-id="'.$row->id.'"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger btn-delete" data-id="'.$row->id.'"><i class="bi bi-trash"></i></button>
                     ';
                 })
                 ->rawColumns(['current_stock', 'action'])
@@ -226,19 +228,18 @@ class ConsumableItemController extends Controller
                 'success' => false,
                 'message' => 'Import gagal: File tidak memiliki data yang valid.',
             ], 422);
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
-            $errors = collect($e->failures())->map(fn($f) =>
-                "Row {$f->row()}: " . implode(', ', $f->errors())
+        } catch (ValidationException $e) {
+            $errors = collect($e->failures())->map(fn ($f) => "Row {$f->row()}: ".implode(', ', $f->errors())
             )->implode(' | ');
 
             return response()->json([
                 'success' => false,
-                'message' => 'Import gagal: ' . $errors,
+                'message' => 'Import gagal: '.$errors,
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Import gagal: ' . $e->getMessage(),
+                'message' => 'Import gagal: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -266,7 +267,7 @@ class ConsumableItemController extends Controller
                     $query->whereColumn('current_stock', '>', 'min_stock');
                 } elseif ($request->stock_status === 'menipis') {
                     $query->where('current_stock', '>', 0)
-                          ->whereColumn('current_stock', '<=', 'min_stock');
+                        ->whereColumn('current_stock', '<=', 'min_stock');
                 } elseif ($request->stock_status === 'habis') {
                     $query->where('current_stock', '<=', 0);
                 }
@@ -274,22 +275,23 @@ class ConsumableItemController extends Controller
 
             return DataTables::of($query)
                 ->addIndexColumn()
-                ->addColumn('category_name', fn($row) => $row->category?->name ?? '-')
-                ->addColumn('supplier_name', fn($row) => $row->supplier?->name ?? $row->supplier_name ?? '-')
+                ->addColumn('category_name', fn ($row) => $row->category?->name ?? '-')
+                ->addColumn('supplier_name', fn ($row) => $row->supplier?->name ?? $row->supplier_name ?? '-')
                 ->addColumn('status_badge', function ($row) {
                     if ($row->current_stock <= 0) {
                         return '<span class="badge bg-danger">Habis</span>';
                     } elseif ($row->current_stock <= $row->min_stock) {
                         return '<span class="badge bg-warning text-dark">Menipis</span>';
                     }
+
                     return '<span class="badge bg-success">Aman</span>';
                 })
                 ->rawColumns(['status_badge'])
                 ->make(true);
         }
 
-        $categories = \App\Models\ConsumableCategory::orderBy('name')->get();
-        $suppliers = \App\Models\Supplier::orderBy('name')->get();
+        $categories = ConsumableCategory::orderBy('name')->get();
+        $suppliers = Supplier::orderBy('name')->get();
 
         $allItems = ConsumableItem::with('category', 'supplier')->orderBy('name')->get();
 
@@ -299,11 +301,12 @@ class ConsumableItemController extends Controller
     private function generateSku(): string
     {
         $last = ConsumableItem::orderBy('id', 'desc')->first();
-        if (!$last || !$last->sku) {
+        if (! $last || ! $last->sku) {
             return 'CSM-00000001';
         }
         $parts = explode('-', $last->sku);
         $next = ((int) end($parts)) + 1;
-        return 'CSM-' . str_pad($next, 8, '0', STR_PAD_LEFT);
+
+        return 'CSM-'.str_pad($next, 8, '0', STR_PAD_LEFT);
     }
 }

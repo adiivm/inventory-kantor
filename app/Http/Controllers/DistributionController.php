@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Division;
-use App\Models\ConsumableItem;
-use App\Models\DistributionHeader;
-use App\Models\DistributionDetail;
-use App\Models\StockTransaction;
 use App\Helpers\Activity;
+use App\Models\ConsumableItem;
+use App\Models\DistributionDetail;
+use App\Models\DistributionHeader;
+use App\Models\Division;
+use App\Models\HeldBy;
+use App\Models\StockTransaction;
+use App\Models\User;
 use App\Notifications\DistributionPendingNotification;
 use App\Notifications\LowStockNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -52,23 +53,24 @@ class DistributionController extends Controller
                     ];
                     $class = $map[$row->status] ?? 'badge bg-secondary';
                     $label = ucfirst($row->status);
+
                     return "<span class='{$class}'>{$label}</span>";
                 })
                 ->addColumn('items_list', function ($row) {
-                    return $row->details->map(fn($d) =>
-                        $d->consumableItem->name . ' x' . $d->qty
+                    return $row->details->map(fn ($d) => $d->consumableItem->name.' x'.$d->qty
                     )->implode('<br>');
                 })
                 ->addColumn('action', function ($row) {
-                    $btn = '<button class="btn btn-sm btn-info me-1" onclick="detailDistribution(' . $row->id . ')" title="Detail"><i class="bi bi-eye"></i></button>';
+                    $btn = '<button class="btn btn-sm btn-info me-1" onclick="detailDistribution('.$row->id.')" title="Detail"><i class="bi bi-eye"></i></button>';
                     if ($row->status === 'pending' && auth()->user()->can_approve) {
-                        $btn .= '<button class="btn btn-sm btn-success me-1" onclick="approveDistribution(' . $row->id . ')"><i class="bi bi-check-lg"></i></button>';
-                        $btn .= '<button class="btn btn-sm btn-danger me-1" onclick="rejectDistribution(' . $row->id . ')"><i class="bi bi-x-lg"></i></button>';
+                        $btn .= '<button class="btn btn-sm btn-success me-1" onclick="approveDistribution('.$row->id.')"><i class="bi bi-check-lg"></i></button>';
+                        $btn .= '<button class="btn btn-sm btn-danger me-1" onclick="rejectDistribution('.$row->id.')"><i class="bi bi-x-lg"></i></button>';
                     }
-                    if ($row->status === 'approved' && !$row->admin_signature) {
-                        $btn .= '<button class="btn btn-sm btn-primary" onclick="signDistribution(' . $row->id . ')"><i class="bi bi-pencil-square"></i></button>';
+                    if ($row->status === 'approved' && ! $row->admin_signature) {
+                        $btn .= '<button class="btn btn-sm btn-primary" onclick="signDistribution('.$row->id.')"><i class="bi bi-pencil-square"></i></button>';
                     }
-                    $btn .= '<button class="btn btn-sm btn-secondary ms-1" onclick="printDistribution(' . $row->id . ')" title="Cetak"><i class="bi bi-printer"></i></button>';
+                    $btn .= '<button class="btn btn-sm btn-secondary ms-1" onclick="printDistribution('.$row->id.')" title="Cetak"><i class="bi bi-printer"></i></button>';
+
                     return $btn;
                 })
                 ->rawColumns(['status_badge', 'items_list', 'action'])
@@ -77,7 +79,7 @@ class DistributionController extends Controller
 
         $divisions = Division::orderBy('name')->get();
         $items = ConsumableItem::where('current_stock', '>', 0)->orderBy('name')->get();
-        $heldBies = \App\Models\HeldBy::orderBy('name')->get();
+        $heldBies = HeldBy::orderBy('name')->get();
 
         return view('consumable.distributions', compact('divisions', 'items', 'heldBies'));
     }
@@ -103,7 +105,7 @@ class DistributionController extends Controller
         try {
             DB::beginTransaction();
 
-            $referenceNumber = 'DIST-' . now()->format('Ymd') . '-' . str_pad(
+            $referenceNumber = 'DIST-'.now()->format('Ymd').'-'.str_pad(
                 DistributionHeader::whereDate('created_at', now())->count() + 1, 4, '0', STR_PAD_LEFT
             );
 
@@ -137,16 +139,17 @@ class DistributionController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membuat permintaan: ' . $e->getMessage(),
+                'message' => 'Gagal membuat permintaan: '.$e->getMessage(),
             ], 500);
         }
     }
 
     public function approve($id)
     {
-        if (!auth()->user()->can_approve) {
+        if (! auth()->user()->can_approve) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak memiliki wewenang untuk approve.',
@@ -158,7 +161,7 @@ class DistributionController extends Controller
         if ($header->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'Permintaan ini sudah ' . $header->status . '.',
+                'message' => 'Permintaan ini sudah '.$header->status.'.',
             ], 422);
         }
 
@@ -173,8 +176,9 @@ class DistributionController extends Controller
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Stok tidak mencukupi untuk beberapa barang:',
@@ -213,7 +217,7 @@ class DistributionController extends Controller
             Activity::log('distribution', 'approve', "Distribusi {$header->reference_number} disetujui", $header);
 
             // Tandai semua notifikasi distribusi ini sebagai sudah dibaca
-            \Illuminate\Support\Facades\DB::table('notifications')
+            DB::table('notifications')
                 ->where('type', 'App\Notifications\DistributionPendingNotification')
                 ->whereRaw("data::jsonb->>'distribution_id' = ?", [(string) $id])
                 ->update(['read_at' => now()]);
@@ -224,16 +228,17 @@ class DistributionController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal approve: ' . $e->getMessage(),
+                'message' => 'Gagal approve: '.$e->getMessage(),
             ], 500);
         }
     }
 
     public function reject($id)
     {
-        if (!auth()->user()->can_approve) {
+        if (! auth()->user()->can_approve) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak memiliki wewenang.',
@@ -245,7 +250,7 @@ class DistributionController extends Controller
         if ($header->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'Permintaan ini sudah ' . $header->status . '.',
+                'message' => 'Permintaan ini sudah '.$header->status.'.',
             ], 422);
         }
 
@@ -256,7 +261,7 @@ class DistributionController extends Controller
         ]);
 
         // Tandai semua notifikasi distribusi ini sebagai sudah dibaca
-        \Illuminate\Support\Facades\DB::table('notifications')
+        DB::table('notifications')
             ->where('type', 'App\Notifications\DistributionPendingNotification')
             ->whereRaw("data::jsonb->>'distribution_id' = ?", [(string) $id])
             ->update(['read_at' => now()]);
@@ -331,6 +336,6 @@ class DistributionController extends Controller
 
         $pdf = Pdf::loadView('consumable.pdf_bukti', compact('header', 'qrCode'));
 
-        return $pdf->download('Bukti-Serah-Terima-' . $header->reference_number . '.pdf');
+        return $pdf->download('Bukti-Serah-Terima-'.$header->reference_number.'.pdf');
     }
 }

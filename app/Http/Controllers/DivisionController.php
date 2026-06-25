@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Division;
 use App\Helpers\Activity;
+use App\Models\Division;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -11,9 +11,9 @@ class DivisionController extends Controller
 {
     public function store(Request $request)
     {
-        $request->validate(['name' => 'required|unique:divisions,name'
+        $request->validate(['name' => 'required|unique:divisions,name',
         ], [
-            'name.unique' => 'Nama divisi ini sudah ada di daftar!'
+            'name.unique' => 'Nama divisi ini sudah ada di daftar!',
         ]);
 
         $division = Division::create(['name' => $request->name]);
@@ -32,7 +32,7 @@ class DivisionController extends Controller
         if ($division->products()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Divisi tidak bisa dihapus karena masih digunakan oleh ' . $division->products()->count() . ' produk.'
+                'message' => 'Divisi tidak bisa dihapus karena masih digunakan oleh '.$division->products()->count().' produk.',
             ], 422);
         }
 
@@ -42,7 +42,7 @@ class DivisionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Divisi berhasil dihapus.'
+            'message' => 'Divisi berhasil dihapus.',
         ]);
     }
 
