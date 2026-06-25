@@ -26,6 +26,7 @@ services:
       - DB_DATABASE=inventory_kantor
       - DB_USERNAME=inventory_user
       - DB_PASSWORD=inventory_pass
+      - TMPDIR=/var/www/html/storage
     depends_on:
       - postgres
     volumes:
