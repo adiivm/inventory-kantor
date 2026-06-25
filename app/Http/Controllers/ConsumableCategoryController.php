@@ -16,11 +16,11 @@ class ConsumableCategoryController extends Controller
 
             return DataTables::of($query)
                 ->addIndexColumn()
-                ->addColumn('items_count', fn($row) => $row->items()->count())
+                ->addColumn('items_count', fn ($row) => $row->items()->count())
                 ->addColumn('action', function ($row) {
                     return '
-                        <button class="btn btn-sm btn-warning" onclick="editCategory(' . $row->id . ')"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteCategory(' . $row->id . ')"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-sm btn-warning" onclick="editCategory('.$row->id.')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCategory('.$row->id.')"><i class="bi bi-trash"></i></button>
                     ';
                 })
                 ->rawColumns(['action'])
@@ -63,7 +63,7 @@ class ConsumableCategoryController extends Controller
         $category = ConsumableCategory::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:consumable_categories,name,' . $id,
+            'name' => 'required|string|max:255|unique:consumable_categories,name,'.$id,
             'description' => 'nullable|string|max:500',
         ]);
 
@@ -82,7 +82,7 @@ class ConsumableCategoryController extends Controller
         if ($category->items()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kategori tidak bisa dihapus karena masih memiliki ' . $category->items()->count() . ' barang.',
+                'message' => 'Kategori tidak bisa dihapus karena masih memiliki '.$category->items()->count().' barang.',
             ], 422);
         }
 

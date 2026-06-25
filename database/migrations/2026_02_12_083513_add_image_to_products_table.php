@@ -9,12 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('products', function (Blueprint $table) {
-        $table->string('image')->nullable()->after('name');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('products', function (Blueprint $table) {
+            $table->string('image')->nullable()->after('name');
+        });
+    }
 
     /**
      * Reverse the migrations.

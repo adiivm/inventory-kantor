@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Supplier;
+use App\Exports\SupplierTemplateExport;
 use App\Helpers\Activity;
 use App\Imports\SupplierImport;
-use App\Exports\SupplierTemplateExport;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
@@ -22,10 +22,10 @@ class SupplierController extends Controller
                 ->addIndexColumn()
                 ->addColumn('action', function ($row) {
                     return '
-                        <button class="btn btn-sm btn-warning" onclick="editSupplier(' . $row->id . ')">
+                        <button class="btn btn-sm btn-warning" onclick="editSupplier('.$row->id.')">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteSupplier(' . $row->id . ')">
+                        <button class="btn btn-sm btn-danger" onclick="deleteSupplier('.$row->id.')">
                             <i class="bi bi-trash"></i>
                         </button>
                     ';
@@ -47,14 +47,14 @@ class SupplierController extends Controller
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
         ], [
-            'name.unique' => 'Nama supplier sudah ada! Silakan gunakan nama lain.'
+            'name.unique' => 'Nama supplier sudah ada! Silakan gunakan nama lain.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => $validator->errors()->first(),
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -65,7 +65,7 @@ class SupplierController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Supplier berhasil ditambahkan',
-            'data' => $supplier
+            'data' => $supplier,
         ]);
     }
 
@@ -74,14 +74,14 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:suppliers,name,' . $id,
+            'name' => 'required|string|max:255|unique:suppliers,name,'.$id,
             'contact_person' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
         ], [
-            'name.unique' => 'Nama supplier sudah ada! Silakan gunakan nama lain.'
+            'name.unique' => 'Nama supplier sudah ada! Silakan gunakan nama lain.',
         ]);
 
         $oldValues = $supplier->toArray();
@@ -128,15 +128,15 @@ class SupplierController extends Controller
             }
 
             $message = "Import selesai. {$count} supplier ditambahkan.";
-            if (!empty($errors)) {
-                $message .= ' ' . implode(' | ', array_slice($errors, 0, 5));
+            if (! empty($errors)) {
+                $message .= ' '.implode(' | ', array_slice($errors, 0, 5));
             }
 
             return response()->json(['success' => true, 'message' => $message]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Import gagal: ' . $e->getMessage(),
+                'message' => 'Import gagal: '.$e->getMessage(),
             ], 500);
         }
     }

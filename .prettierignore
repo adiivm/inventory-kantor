@@ -1,0 +1,11 @@
+# Mengabaikan folder dependency
+/node_modules
+/vendor
+
+# Mengabaikan folder bawaan Laravel yang dinamis
+/storage
+/bootstrap/cache
+
+# Mengabaikan file lock otomatis
+package-lock.json
+composer.lock

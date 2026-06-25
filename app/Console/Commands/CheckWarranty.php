@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Product;
+use Illuminate\Console\Command;
 
 class CheckWarranty extends Command
 {
@@ -26,6 +26,7 @@ class CheckWarranty extends Command
 
             if ($products->isEmpty()) {
                 $this->info('✅ Tidak ada produk dengan garansi expired.');
+
                 return Command::SUCCESS;
             }
 
@@ -38,19 +39,20 @@ class CheckWarranty extends Command
 
             if ($products->isEmpty()) {
                 $this->info('✅ Semua garansi produk dalam keadaan aman.');
+
                 return Command::SUCCESS;
             }
 
             $this->warn('⚠️  Produk dengan garansi KRITIS (≤30 hari):');
         }
 
-        $rows = $products->map(fn($p) => [
+        $rows = $products->map(fn ($p) => [
             $p->sku,
             $p->name,
             $p->category?->name ?? '-',
             $p->division?->name ?? '-',
             $p->warranty_expiry_date?->format('d/m/Y') ?? '-',
-            $showExpired ? 'EXPIRED' : now()->diffInDays($p->warranty_expiry_date) . ' hari',
+            $showExpired ? 'EXPIRED' : now()->diffInDays($p->warranty_expiry_date).' hari',
         ]);
 
         $this->table(

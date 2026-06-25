@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Helpers\Activity;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -12,9 +12,9 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|unique:categories,name'
+            'name' => 'required|unique:categories,name',
         ], [
-            'name.unique' => 'Nama kategori ini sudah ada di daftar!'
+            'name.unique' => 'Nama kategori ini sudah ada di daftar!',
         ]);
 
         $category = Category::create(['name' => $request->name]);
@@ -33,7 +33,7 @@ class CategoryController extends Controller
         if ($category->products()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kategori tidak bisa dihapus karena masih digunakan oleh ' . $category->products()->count() . ' produk.'
+                'message' => 'Kategori tidak bisa dihapus karena masih digunakan oleh '.$category->products()->count().' produk.',
             ], 422);
         }
 
@@ -43,7 +43,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Kategori berhasil dihapus.'
+            'message' => 'Kategori berhasil dihapus.',
         ]);
     }
 }

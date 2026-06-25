@@ -3,7 +3,6 @@
 use App\Models\ConsumableItem;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -16,7 +15,7 @@ return new class extends Migration
 
         $rows = ConsumableItem::withTrashed()->whereNull('sku')->get();
         foreach ($rows as $item) {
-            $item->sku = 'CSM-' . str_pad($item->id, 8, '0', STR_PAD_LEFT);
+            $item->sku = 'CSM-'.str_pad($item->id, 8, '0', STR_PAD_LEFT);
             $item->saveQuietly();
         }
 

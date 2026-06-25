@@ -2,12 +2,12 @@
 
 namespace App\Jobs;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Notification;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\WarrantyCriticalAlert;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Notification;
 
 class CheckWarrantyJob implements ShouldQueue
 {
@@ -18,7 +18,7 @@ class CheckWarrantyJob implements ShouldQueue
         $critical = Product::active()->warrantyCritical()
             ->with(['category', 'division'])
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'sku' => $p->sku,
                 'name' => $p->name,
                 'days_left' => now()->diffInDays($p->warranty_expiry_date),
@@ -29,7 +29,7 @@ class CheckWarrantyJob implements ShouldQueue
         $expired = Product::active()->warrantyExpired()
             ->with(['category', 'division'])
             ->get()
-            ->map(fn($p) => [
+            ->map(fn ($p) => [
                 'sku' => $p->sku,
                 'name' => $p->name,
                 'days_left' => 0,

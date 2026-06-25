@@ -18,8 +18,8 @@ class ConsumableUnitController extends Controller
                 ->addIndexColumn()
                 ->addColumn('action', function ($row) {
                     return '
-                        <button class="btn btn-sm btn-warning" onclick="editUnit(' . $row->id . ')"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteUnit(' . $row->id . ')"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-sm btn-warning" onclick="editUnit('.$row->id.')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUnit('.$row->id.')"><i class="bi bi-trash"></i></button>
                     ';
                 })
                 ->rawColumns(['action'])
@@ -61,7 +61,7 @@ class ConsumableUnitController extends Controller
         $unit = ConsumableUnit::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:100|unique:consumable_units,name,' . $id,
+            'name' => 'required|string|max:100|unique:consumable_units,name,'.$id,
         ]);
 
         $unit->update($validated);

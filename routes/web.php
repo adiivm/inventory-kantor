@@ -1,25 +1,34 @@
 <?php
 
-use App\Http\Controllers\ProductController;
-use App\Models\Product;
-use Illuminate\Http\Request;
-use App\Http\Controllers\LoginController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\DivisionController;
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\DashboardController;
+use App\Exports\ConsumableStockReportExport;
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuditController;
-use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ConsumableCategoryController;
+use App\Http\Controllers\ConsumableDashboardController;
 use App\Http\Controllers\ConsumableItemController;
 use App\Http\Controllers\ConsumableUnitController;
-use App\Http\Controllers\ConsumableDashboardController;
-use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DistributionController;
+use App\Http\Controllers\DivisionController;
+use App\Http\Controllers\LoginController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\UserController;
+use App\Models\Category;
+use App\Models\ConsumableCategory;
+use App\Models\ConsumableUnit;
+use App\Models\DistributionHeader;
+use App\Models\Division;
 use App\Models\HeldBy;
 use App\Models\Location;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Maatwebsite\Excel\Facades\Excel;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -31,6 +40,7 @@ Route::post('/logout', function (Request $request) {
     Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
+
     return redirect('/login');
 })->name('logout');
 
@@ -51,8 +61,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/product/import-template', [ProductController::class, 'downloadTemplate'])->name('product.import_template');
     Route::post('/product/import', [ProductController::class, 'importExcel'])->name('product.import');
     Route::post('/product/bulk-print-labels', [ProductController::class, 'bulkPrintLabels'])->name('product.bulk_print_labels');
-    Route::get('/reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
-    Route::post('/reports/export-excel', [\App\Http\Controllers\ReportController::class, 'exportExcel'])->name('reports.export_excel');
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::post('/reports/export-excel', [ReportController::class, 'exportExcel'])->name('reports.export_excel');
     Route::post('/product/store', [ProductController::class, 'store'])->name('product.store');
 
     // 2. Rute Dinamis (Yang pakai {id})
@@ -61,12 +71,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/product/update/{id}', [ProductController::class, 'update'])->name('product.update');
     Route::delete('/product/delete/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
     Route::get('/product/{id}/all-logs', [ProductController::class, 'getAllLogs'])->name('product.allLogs');
-    Route::get('/product/api/{id}', [App\Http\Controllers\ProductController::class, 'getApiData']);
+    Route::get('/product/api/{id}', [ProductController::class, 'getApiData']);
     Route::post('/product/archive/{id}', [ProductController::class, 'archive'])->name('product.archive');
     Route::post('/product/restore/{id}', [ProductController::class, 'restore'])->name('product.restore');
     Route::post('/product/image-primary/{id}', [ProductController::class, 'setPrimaryImage'])->name('product.image.primary');
     Route::delete('/product/image-delete/{id}', [ProductController::class, 'deleteImage'])->name('product.image.delete');
-
 
     /** --- MANAJEMEN USER (SESUAI BLADE INDEX USER) --- **/
     // Menampilkan daftar user
@@ -78,7 +87,6 @@ Route::middleware('auth')->group(function () {
     // Hapus user
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
-
     /** --- API & DROP-DOWN OTOMATIS --- **/
     Route::post('/api/categories', [CategoryController::class, 'store']);
     Route::post('/api/divisions', [DivisionController::class, 'store']);
@@ -88,16 +96,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/held_bies', function (Request $request) {
         $request->validate(['name' => 'required|unique:held_bies,name'], ['name.unique' => 'Nama pemegang ini sudah ada!']);
         $data = HeldBy::create(['name' => $request->name]);
+
         return response()->json($data);
     });
     Route::get('/api/held_bies', function () {
-        return response()->json(\App\Models\HeldBy::orderBy('name')->get());
+        return response()->json(HeldBy::orderBy('name')->get());
     });
 
     // Route untuk simpan Lokasi Baru via AJAX
     Route::post('/api/locations', function (Request $request) {
         $request->validate(['name' => 'required|unique:locations,name'], ['name.unique' => 'Nama Lokasi ini sudah ada!']);
         $data = Location::create(['name' => $request->name]);
+
         return response()->json($data);
     });
 
@@ -105,36 +115,38 @@ Route::middleware('auth')->group(function () {
     Route::delete('/api/categories/{id}', [CategoryController::class, 'destroy']);
     Route::delete('/api/divisions/{id}', [DivisionController::class, 'destroy']);
     Route::delete('/api/held_bies/{id}', function ($id) {
-        \Illuminate\Support\Facades\Gate::authorize('admin-only');
+        Gate::authorize('admin-only');
         $item = HeldBy::findOrFail($id);
         if ($item->products()->exists()) {
-            return response()->json(['success' => false, 'message' => 'Pemegang tidak bisa dihapus karena masih digunakan oleh ' . $item->products()->count() . ' produk.'], 422);
+            return response()->json(['success' => false, 'message' => 'Pemegang tidak bisa dihapus karena masih digunakan oleh '.$item->products()->count().' produk.'], 422);
         }
         $item->delete();
+
         return response()->json(['success' => true, 'message' => 'Pemegang berhasil dihapus.']);
     });
     Route::delete('/api/consumable-categories/{id}', [ConsumableCategoryController::class, 'destroy']);
     Route::delete('/api/consumable-units/{id}', [ConsumableUnitController::class, 'destroy']);
 
     Route::delete('/api/locations/{id}', function ($id) {
-        \Illuminate\Support\Facades\Gate::authorize('admin-only');
+        Gate::authorize('admin-only');
         $item = Location::findOrFail($id);
         if ($item->products()->exists()) {
-            return response()->json(['success' => false, 'message' => 'Lokasi tidak bisa dihapus karena masih digunakan oleh ' . $item->products()->count() . ' produk.'], 422);
+            return response()->json(['success' => false, 'message' => 'Lokasi tidak bisa dihapus karena masih digunakan oleh '.$item->products()->count().' produk.'], 422);
         }
         $item->delete();
+
         return response()->json(['success' => true, 'message' => 'Lokasi berhasil dihapus.']);
     });
 
     /** --- MASTER DATA --- **/
     Route::get('/master-data', function () {
         return view('master_data', [
-            'categories' => \App\Models\Category::orderBy('name')->get(),
-            'divisions' => \App\Models\Division::orderBy('name')->get(),
-            'held_bies' => \App\Models\HeldBy::orderBy('name')->get(),
-            'locations' => \App\Models\Location::orderBy('name')->get(),
-            'consumableCategories' => \App\Models\ConsumableCategory::orderBy('name')->get(),
-            'consumableUnits' => \App\Models\ConsumableUnit::orderBy('name')->get(),
+            'categories' => Category::orderBy('name')->get(),
+            'divisions' => Division::orderBy('name')->get(),
+            'held_bies' => HeldBy::orderBy('name')->get(),
+            'locations' => Location::orderBy('name')->get(),
+            'consumableCategories' => ConsumableCategory::orderBy('name')->get(),
+            'consumableUnits' => ConsumableUnit::orderBy('name')->get(),
         ]);
     })->name('master.data');
 
@@ -183,26 +195,28 @@ Route::middleware('auth')->group(function () {
     Route::get('/consumable/distributions/{id}/print', [DistributionController::class, 'printPdf'])->name('consumable.distributions.print');
     Route::get('/consumable/reports', [ConsumableItemController::class, 'report'])->name('consumable.reports');
     Route::post('/consumable/reports/export', function () {
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\ConsumableStockReportExport,
+        return Excel::download(
+            new ConsumableStockReportExport,
             'Laporan-Stok-Consumable.xlsx'
         );
     })->name('consumable.reports.export');
 
     Route::get('/consumable/distributions/verify/{id}', function ($id) {
-        $header = App\Models\DistributionHeader::with('details.consumableItem', 'division', 'approver')->findOrFail($id);
+        $header = DistributionHeader::with('details.consumableItem', 'division', 'approver')->findOrFail($id);
+
         return view('consumable.pdf_bukti', compact('header'));
     })->name('distribution.verify');
 
     Route::post('/notifications/{id}/read', function ($id) {
         $notification = auth()->user()->notifications()->findOrFail($id);
         $notification->markAsRead();
+
         return response()->json(['success' => true]);
     })->name('notifications.read');
 
     /** --- ACTIVITY LOGS --- **/
-    Route::get('/activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity.logs');
-    Route::get('/activity-logs/{id}', [App\Http\Controllers\ActivityLogController::class, 'show']);
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity.logs');
+    Route::get('/activity-logs/{id}', [ActivityLogController::class, 'show']);
 
     /** --- SUPPLIER MANAGEMENT --- **/
     Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');

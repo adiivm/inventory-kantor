@@ -26,7 +26,7 @@ class WarrantyCriticalAlert extends Notification
         return [
             'products' => $this->products,
             'total' => count($this->products),
-            'message' => count($this->products) . ' produk dengan garansi kritis/expired',
+            'message' => count($this->products).' produk dengan garansi kritis/expired',
         ];
     }
 }

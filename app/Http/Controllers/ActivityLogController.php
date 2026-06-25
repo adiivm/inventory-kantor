@@ -31,7 +31,7 @@ class ActivityLogController extends Controller
 
             return DataTables::of($query)
                 ->addIndexColumn()
-                ->editColumn('created_at', fn($row) => $row->created_at->format('d/m/Y H:i'))
+                ->editColumn('created_at', fn ($row) => $row->created_at->format('d/m/Y H:i'))
                 ->addColumn('module_badge', function ($row) {
                     $colors = [
                         'asset' => 'bg-primary',
@@ -41,7 +41,8 @@ class ActivityLogController extends Controller
                         'user' => 'bg-secondary',
                     ];
                     $color = $colors[$row->module] ?? 'bg-dark';
-                    return "<span class='badge {$color}'>" . ucfirst($row->module) . '</span>';
+
+                    return "<span class='badge {$color}'>".ucfirst($row->module).'</span>';
                 })
                 ->addColumn('action_badge', function ($row) {
                     $colors = [
@@ -54,13 +55,17 @@ class ActivityLogController extends Controller
                         'restore' => 'bg-info text-dark',
                     ];
                     $color = $colors[$row->action] ?? 'bg-secondary';
-                    return "<span class='badge {$color}'>" . ucfirst($row->action) . '</span>';
+
+                    return "<span class='badge {$color}'>".ucfirst($row->action).'</span>';
                 })
                 ->addColumn('detail', function ($row) {
                     $hasOld = $row->old_values && count($row->old_values) > 0;
                     $hasNew = $row->new_values && count($row->new_values) > 0;
-                    if (!$hasOld && !$hasNew) return '-';
-                    return '<button class="btn btn-sm btn-outline-info btn-detail" data-id="' . $row->id . '"><i class="bi bi-eye"></i></button>';
+                    if (! $hasOld && ! $hasNew) {
+                        return '-';
+                    }
+
+                    return '<button class="btn btn-sm btn-outline-info btn-detail" data-id="'.$row->id.'"><i class="bi bi-eye"></i></button>';
                 })
                 ->rawColumns(['module_badge', 'action_badge', 'detail'])
                 ->make(true);
@@ -72,6 +77,7 @@ class ActivityLogController extends Controller
     public function show($id)
     {
         $log = ActivityLog::findOrFail($id);
+
         return response()->json($log);
     }
 }

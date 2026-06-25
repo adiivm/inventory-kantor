@@ -8,7 +8,8 @@ class ProductLog extends Model
 {
     protected $fillable = ['product_id', 'action', 'description', 'old_stock', 'new_stock', 'user_name'];
 
-    public function product() {
+    public function product()
+    {
         return $this->belongsTo(Product::class);
     }
 }

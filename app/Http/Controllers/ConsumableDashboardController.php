@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConsumableItem;
-use App\Models\DistributionHeader;
 use App\Models\DistributionDetail;
+use App\Models\DistributionHeader;
 use App\Models\StockTransaction;
 use Illuminate\Support\Facades\DB;
 
@@ -51,7 +51,7 @@ class ConsumableDashboardController extends Controller
         // Row 3: Top 5 Requested Items (hanya approved)
         $topRequested = DistributionDetail::select('consumable_item_id', DB::raw('SUM(qty) as total_qty'))
             ->with('consumableItem')
-            ->whereHas('header', fn($q) => $q->where('status', 'approved'))
+            ->whereHas('header', fn ($q) => $q->where('status', 'approved'))
             ->groupBy('consumable_item_id')
             ->orderByDesc('total_qty')
             ->limit(5)
