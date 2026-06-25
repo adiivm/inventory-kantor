@@ -288,6 +288,7 @@
 
  
     </style>
+    @stack('styles')
 </head>
 <body>
     @include('layouts.sidebar')

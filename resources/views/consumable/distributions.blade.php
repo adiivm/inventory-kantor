@@ -9,13 +9,24 @@
         border: 2px dashed #adb5bd;
         border-radius: 10px;
         width: 100%;
+        max-width: 100%;
         height: 150px;
         cursor: crosshair;
-        background: #fff;
+        background: #f8f9fa;
         touch-action: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        display: block;
     }
-    .sig-canvas.active { border-color: #0d6efd; background: #f8fbff; }
+    .sig-canvas.active { border-color: #0d6efd; background: #fff; }
     .sig-label { font-size: 0.85rem; font-weight: 600; color: #6c757d; }
+    @media (max-width: 575px) {
+        .sig-canvas { height: 140px; }
+        .modal-signature-body { padding: 0.75rem !important; }
+        #modalSignature .col-md-6:not(:last-child) { margin-bottom: 0.5rem; }
+    }
+    .modal-signature-body { max-height: 75vh; overflow: hidden; overscroll-behavior: contain; touch-action: none; }
     @media (max-width: 767px) {
         #tableDistributions {
             width: 100% !important;
@@ -227,7 +238,7 @@
 
 {{-- Modal Signature --}}
 <div class="modal fade" id="modalSignature" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
             <div class="modal-header bg-primary text-white border-0" style="border-radius: 15px 15px 0 0;">
                 <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Serah Terima & Tanda Tangan</h5>
@@ -236,16 +247,16 @@
             <form id="formSignature">
                 @csrf
                 <input type="hidden" id="sigDistributionId" value="">
-                <div class="modal-body p-4">
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
+                <div class="modal-body p-4 modal-signature-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
                             <div class="sig-label mb-2"><i class="bi bi-person-badge me-1"></i>Admin / Purchasing</div>
                             <canvas id="sigAdmin" class="sig-canvas"></canvas>
                             <div class="mt-2 d-flex gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearCanvas('sigAdmin')"><i class="bi bi-eraser"></i> Hapus</button>
                             </div>
                         </div>
-                        <div class="col-md-6 mb-4">
+                        <div class="col-md-6">
                             <div class="sig-label mb-2"><i class="bi bi-person me-1"></i>Penerima</div>
                             <canvas id="sigReceiver" class="sig-canvas"></canvas>
                             <div class="mt-2 d-flex gap-2">
@@ -579,24 +590,17 @@
 
         // --- Signature Pad init ---
         function initSignaturePads() {
-            const adminCanvas = document.getElementById('sigAdmin');
-            const receiverCanvas = document.getElementById('sigReceiver');
-            if (adminCanvas && !sigAdminPad) {
-                sigAdminPad = new SignaturePad(adminCanvas);
-                resizeCanvas(adminCanvas);
-            }
-            if (receiverCanvas && !sigReceiverPad) {
-                sigReceiverPad = new SignaturePad(receiverCanvas);
-                resizeCanvas(receiverCanvas);
-            }
-        }
-
-        function resizeCanvas(canvas) {
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * (window.devicePixelRatio || 1);
-            canvas.height = rect.height * (window.devicePixelRatio || 1);
-            const ctx = canvas.getContext('2d');
-            ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+            ['sigAdmin', 'sigReceiver'].forEach(function(id) {
+                const canvas = document.getElementById(id);
+                if (!canvas) return;
+                const pad = id === 'sigAdmin' ? sigAdminPad : sigReceiverPad;
+                if (pad) { pad.off(); pad.clear(); }
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+                const newPad = new SignaturePad(canvas, { minWidth: 1, maxWidth: 3 });
+                if (id === 'sigAdmin') sigAdminPad = newPad;
+                else sigReceiverPad = newPad;
+            });
         }
 
         window.clearCanvas = function(id) {
@@ -604,13 +608,20 @@
             if (pad) pad.clear();
         };
 
+        function preventScroll(e) {
+            if (e.target.closest('#modalSignature .sig-canvas') || e.target.closest('#modalSignature .modal-signature-body')) {
+                e.preventDefault();
+            }
+        }
+        document.addEventListener('touchmove', preventScroll, { passive: false });
+
         $('#modalSignature').on('shown.bs.modal', function() {
             initSignaturePads();
         });
 
         $('#modalSignature').on('hidden.bs.modal', function() {
-            if (sigAdminPad) { sigAdminPad.clear(); sigAdminPad = null; }
-            if (sigReceiverPad) { sigReceiverPad.clear(); sigReceiverPad = null; }
+            if (sigAdminPad) { sigAdminPad.off(); sigAdminPad = null; }
+            if (sigReceiverPad) { sigReceiverPad.off(); sigReceiverPad = null; }
             $('#sigAdminData').val('');
             $('#sigReceiverData').val('');
         });
