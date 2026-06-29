@@ -32,10 +32,10 @@ class ProductController extends Controller
     // Menampilkan halaman form
     public function create()
     {
-        $categories = Category::all();
-        $divisions = Division::all();
-        $held_bies = HeldBy::all();    // Tambahkan ini
-        $locations = Location::all(); // Tambahkan ini
+        $categories = Category::orderBy('name')->get();
+        $divisions = Division::orderBy('name')->get();
+        $held_bies = HeldBy::orderBy('name')->get();
+        $locations = Location::orderBy('name')->get();
         $suppliers = Supplier::orderBy('name')->get(); // Supplier
 
         // SAMAKAN NAMANYA: Gunakan $product, jangan $b
@@ -68,10 +68,10 @@ class ProductController extends Controller
         $this->authorize('update', $product); // Gunakan Policy
 
         // 2. Ambil semua kategori & divisi supaya muncul di dropdown edit
-        $categories = Category::all();
-        $divisions = Division::all();
-        $held_bies = HeldBy::all();    // Tambahkan ini
-        $locations = Location::all(); // Tambahkan ini
+        $categories = Category::orderBy('name')->get();
+        $divisions = Division::orderBy('name')->get();
+        $held_bies = HeldBy::orderBy('name')->get();
+        $locations = Location::orderBy('name')->get();
         $suppliers = Supplier::orderBy('name')->get();
 
         // 3. Kirim semuanya ke view
