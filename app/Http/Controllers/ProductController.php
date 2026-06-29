@@ -21,7 +21,6 @@ use App\Models\Supplier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
@@ -542,7 +541,7 @@ class ProductController extends Controller
                     return '<strong class="text-primary">'.$auditor.'</strong><br><small class="text-muted">'.$tgl.'</small>'.$notes;
                 })
                 ->addColumn('action', function ($row) {
-                    $deleteBtn = Gate::allows('admin-only') ? '
+                    $deleteBtn = auth()->user()->can('forceDelete', $row) ? '
                                 <button type="button" class="btn btn-sm btn-danger" onclick="forceDelete('.$row->id.')" title="Delete Permanen">
                                     <i class="bi bi-trash"></i>
                                 </button>' : '';
@@ -711,7 +710,7 @@ class ProductController extends Controller
                     return '<span class="badge '.$class.' fs-6">'.$label.'</span>';
                 })
                 ->addColumn('action', function ($row) {
-                    $deleteBtn = Gate::allows('admin-only') ? '
+                    $deleteBtn = auth()->user()->can('forceDelete', $row) ? '
                         <button type="button" class="btn btn-sm btn-danger btn-delete" data-id="'.$row->id.'" title="Hapus Permanen">
                             <i class="bi bi-trash"></i>
                         </button>' : '';

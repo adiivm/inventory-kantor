@@ -304,14 +304,14 @@
             <div class="user-info d-flex align-items-center gap-2">
                 <!-- Notifikasi Garansi Kritis -->
                 @if($jmlGaransiKritis > 0)
-                <div class="dropdown me-2">
-                    <a href="#" class="position-relative text-dark d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-bell-fill text-warning" style="font-size: 1.3rem;"></i>
+                <div class="dropdown me-2" style="overflow:visible">
+                    <a href="#" class="position-relative text-dark d-flex align-items-center px-1 py-1" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell-fill text-warning" style="font-size: 1.4rem;"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.85rem; min-width: 24px; height: 24px;">
                             {{ $jmlGaransiKritis }}
                         </span>
                     </a>
-                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-width: 90vw; border-radius: 12px;">
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="min-width: 280px; max-width: 90vw; width: max-content; border-radius: 12px;">
                         <div class="d-flex justify-content-between align-items-center px-2 py-2">
                             <span class="fw-bold text-warning small"><i class="bi bi-exclamation-triangle me-1"></i> Garansi Kritis</span>
                             <a href="{{ route('product.index', ['warranty_status' => 'critical']) }}" class="btn btn-sm btn-warning py-1 px-2" style="font-size: 0.7rem;">Lihat</a>
@@ -322,7 +322,7 @@
                             $currentDay = now()->startOfDay();
                             $daysDiff = $currentDay->diffInDays($expiryDate, false);
                         @endphp
-                        <a href="{{ route('product.index', ['search_sku' => $item->sku]) }}" class="dropdown-item py-2 border-bottom">
+                        <a href="{{ route('product.index', ['search_sku' => $item->sku]) }}" class="dropdown-item py-2 border-bottom" style="white-space:normal">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong class="d-block" style="font-size: 0.8rem;">{{ $item->sku }}</strong>
@@ -346,20 +346,20 @@
 
                 <!-- Notifikasi Approval -->
                 @if($jmlDistribusi > 0 || $jmlStockIn > 0)
-                <div class="dropdown me-2">
-                    <a href="#" class="position-relative text-dark d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-bell-fill text-success" style="font-size: 1.3rem;"></i>
+                <div class="dropdown me-2" style="overflow:visible">
+                    <a href="#" class="position-relative text-dark d-flex align-items-center px-1 py-1" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-bell-fill text-success" style="font-size: 1.4rem;"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.85rem; min-width: 24px; height: 24px;">
                             {{ $jmlDistribusi + $jmlStockIn }}
                         </span>
                     </a>
-                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="width: 320px; max-width: 90vw; border-radius: 12px;">
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-2" style="min-width: 280px; max-width: 90vw; width: max-content; border-radius: 12px;">
                         @if($jmlDistribusi > 0)
                         <div class="px-2 py-2 border-bottom">
                             <span class="fw-bold text-success small"><i class="bi bi-truck me-1"></i> Permintaan Distribusi</span>
                         </div>
                         @foreach($distribusiNotifications as $notif)
-                        <a href="{{ route('consumable.distributions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom">
+                        <a href="{{ route('consumable.distributions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom" style="white-space:normal">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong class="d-block" style="font-size: 0.8rem;">
@@ -378,7 +378,7 @@
                             <span class="fw-bold text-primary small"><i class="bi bi-box-arrow-in-right me-1"></i> Transaksi Masuk & Penyesuaian</span>
                         </div>
                         @foreach($stockInNotifications as $notif)
-                        <a href="{{ route('consumable.transactions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom">
+                        <a href="{{ route('consumable.transactions', ['status' => 'pending']) }}" class="dropdown-item py-2 border-bottom" style="white-space:normal">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <strong class="d-block" style="font-size: 0.8rem;">

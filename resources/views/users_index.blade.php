@@ -22,7 +22,7 @@
                         <td>{{ $u->name }}</td>
                         <td>{{ $u->email }}</td>
                         <td>
-                            <span class="badge {{ $u->role == 'admin' ? 'bg-danger' : 'bg-info' }}">
+                            <span class="badge {{ $u->role == 'admin' ? 'bg-danger' : ($u->role == 'manager' ? 'bg-warning' : 'bg-info') }}">
                                 {{ strtoupper($u->role) }}
                             </span>
                         </td>
@@ -70,6 +70,7 @@
                                             <label>Role</label>
                                             <select name="role" class="form-control">
                                                 <option value="staff" {{ $u->role == 'staff' ? 'selected' : '' }}>Staff</option>
+                                                <option value="manager" {{ $u->role == 'manager' ? 'selected' : '' }}>Manager</option>
                                                 <option value="admin" {{ $u->role == 'admin' ? 'selected' : '' }}>Admin</option>
                                             </select>
                                         </div>
@@ -109,6 +110,7 @@
                             <input type="password" name="password" class="form-control mb-2" placeholder="Password">
                             <select name="role" class="form-control">
                                 <option value="staff">Staff</option>
+                                <option value="manager">Manager</option>
                                 <option value="admin">Admin</option>
                             </select>
                             <div class="form-check form-switch mt-2">

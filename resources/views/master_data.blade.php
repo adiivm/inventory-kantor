@@ -28,19 +28,22 @@
                         <thead>
                             <tr>
                                 <th>Nama</th>
-                                <th class="text-end" style="width:80px">Aksi</th>
+                                <th class="text-end" style="width:110px">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($t['data'] as $row)
-                            <tr>
+                            <tr data-type="{{ $t['id'] }}" data-id="{{ $row->id }}" data-name="{{ $row->name }}">
                                 <td class="master-name">{{ $row->name }}</td>
-                                <td class="text-end">
-                                    @if(Auth::user()->role === 'admin')
-                                    <button class="btn btn-sm btn-outline-danger" onclick="hapusMaster('{{ $t['id'] }}', {{ $row->id }}, '{{ $row->name }}')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    @endif
+                                <td>
+                                    <div class="d-flex justify-content-end gap-1">
+                                        <button class="btn btn-sm btn-outline-primary btn-edit-master" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete-master" title="Hapus">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             @empty
@@ -57,39 +60,90 @@
 
 @push('scripts')
 <script>
-function hapusMaster(type, id, name) {
-    Swal.fire({
-        title: 'Hapus ' + name + '?',
-        text: 'Data yang sudah dipakai produk tidak bisa dihapus.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal'
-    }).then(result => {
-        if (result.isConfirmed) {
-            fetch('/api/' + type + '/' + id, {
-                method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, timer: 1500, showConfirmButton: false });
-                    location.reload();
-                } else {
-                    Swal.fire('Error', data.message || 'Gagal menghapus', 'error');
-                }
-            })
-            .catch(e => {
-                Swal.fire('Error', e.message || 'Terjadi kesalahan', 'error');
-            });
-        }
-    });
-}
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('.btn-edit-master');
+    if (target) {
+        var row = target.closest('tr');
+        var type = row.dataset.type;
+        var id = row.dataset.id;
+        var name = row.dataset.name;
+
+        Swal.fire({
+            title: 'Edit ' + type.replace('-', ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }),
+            input: 'text',
+            inputValue: name,
+            showCancelButton: true,
+            confirmButtonText: 'Simpan',
+            cancelButtonText: 'Batal',
+            inputValidator: function(value) { return !value && 'Nama tidak boleh kosong!'; }
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                fetch('/api/' + type + '/' + id, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ name: result.value })
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, timer: 1500, showConfirmButton: false });
+                        location.reload();
+                    } else {
+                        Swal.fire('Error', data.message || 'Gagal mengupdate', 'error');
+                    }
+                })
+                .catch(function(e) {
+                    Swal.fire('Error', e.message || 'Terjadi kesalahan', 'error');
+                });
+            }
+        });
+        return;
+    }
+
+    target = e.target.closest('.btn-delete-master');
+    if (target) {
+        var row = target.closest('tr');
+        var type = row.dataset.type;
+        var id = row.dataset.id;
+        var name = row.dataset.name;
+
+        Swal.fire({
+            title: 'Hapus ' + name + '?',
+            text: 'Data yang sudah dipakai produk tidak bisa dihapus.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                fetch('/api/' + type + '/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, timer: 1500, showConfirmButton: false });
+                        location.reload();
+                    } else {
+                        Swal.fire('Error', data.message || 'Gagal menghapus', 'error');
+                    }
+                })
+                .catch(function(e) {
+                    Swal.fire('Error', e.message || 'Terjadi kesalahan', 'error');
+                });
+            }
+        });
+    }
+});
 
 document.querySelectorAll('.master-search').forEach(function(input) {
     input.addEventListener('keyup', function() {
