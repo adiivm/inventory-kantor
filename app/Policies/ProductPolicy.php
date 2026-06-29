@@ -44,7 +44,7 @@ class ProductPolicy
      */
     public function delete(User $user, Product $product): bool
     {
-        return strtolower($user->role) === 'admin'; // Hanya Admin yang boleh hard delete
+        return in_array(strtolower($user->role), ['admin', 'manager', 'staff']);
     }
 
     /**
@@ -52,7 +52,7 @@ class ProductPolicy
      */
     public function restore(User $user, Product $product): bool
     {
-        return strtolower($user->role) === 'admin';
+        return in_array(strtolower($user->role), ['admin', 'manager']);
     }
 
     /**
@@ -60,6 +60,6 @@ class ProductPolicy
      */
     public function forceDelete(User $user, Product $product): bool
     {
-        return strtolower($user->role) === 'admin';
+        return in_array(strtolower($user->role), ['admin', 'manager']);
     }
 }

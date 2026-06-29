@@ -23,9 +23,25 @@ class DivisionController extends Controller
         return response()->json($division);
     }
 
+    public function update(Request $request, $id)
+    {
+        $request->validate(['name' => 'required|unique:divisions,name,'.$id,
+        ], [
+            'name.unique' => 'Nama divisi ini sudah ada di daftar!',
+        ]);
+
+        $division = Division::findOrFail($id);
+        $old = $division->name;
+        $division->update(['name' => $request->name]);
+
+        Activity::logUpdate('master', "Divisi {$old} → {$division->name}", $division, $division->toArray());
+
+        return response()->json(['success' => true, 'message' => 'Divisi berhasil diupdate.', 'data' => $division]);
+    }
+
     public function destroy($id)
     {
-        Gate::authorize('admin-only');
+        Gate::authorize('staff-access');
 
         $division = Division::findOrFail($id);
 

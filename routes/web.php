@@ -89,7 +89,9 @@ Route::middleware('auth')->group(function () {
 
     /** --- API & DROP-DOWN OTOMATIS --- **/
     Route::post('/api/categories', [CategoryController::class, 'store']);
+    Route::put('/api/categories/{id}', [CategoryController::class, 'update']);
     Route::post('/api/divisions', [DivisionController::class, 'store']);
+    Route::put('/api/divisions/{id}', [DivisionController::class, 'update']);
     Route::get('/api/divisions', [DivisionController::class, 'getAll']);
 
     // Route untuk simpan Pemegang Baru via AJAX
@@ -98,6 +100,13 @@ Route::middleware('auth')->group(function () {
         $data = HeldBy::create(['name' => $request->name]);
 
         return response()->json($data);
+    });
+    Route::put('/api/held_bies/{id}', function (Request $request, $id) {
+        $request->validate(['name' => 'required|unique:held_bies,name,'.$id], ['name.unique' => 'Nama pemegang ini sudah ada!']);
+        $item = HeldBy::findOrFail($id);
+        $item->update(['name' => $request->name]);
+
+        return response()->json(['success' => true, 'message' => 'Pemegang berhasil diupdate.', 'data' => $item]);
     });
     Route::get('/api/held_bies', function () {
         return response()->json(HeldBy::orderBy('name')->get());
@@ -110,12 +119,19 @@ Route::middleware('auth')->group(function () {
 
         return response()->json($data);
     });
+    Route::put('/api/locations/{id}', function (Request $request, $id) {
+        $request->validate(['name' => 'required|unique:locations,name,'.$id], ['name.unique' => 'Nama Lokasi ini sudah ada!']);
+        $item = Location::findOrFail($id);
+        $item->update(['name' => $request->name]);
+
+        return response()->json(['success' => true, 'message' => 'Lokasi berhasil diupdate.', 'data' => $item]);
+    });
 
     // Hapus master data via AJAX (admin only)
     Route::delete('/api/categories/{id}', [CategoryController::class, 'destroy']);
     Route::delete('/api/divisions/{id}', [DivisionController::class, 'destroy']);
     Route::delete('/api/held_bies/{id}', function ($id) {
-        Gate::authorize('admin-only');
+        Gate::authorize('staff-access');
         $item = HeldBy::findOrFail($id);
         if ($item->products()->exists()) {
             return response()->json(['success' => false, 'message' => 'Pemegang tidak bisa dihapus karena masih digunakan oleh '.$item->products()->count().' produk.'], 422);
@@ -125,10 +141,12 @@ Route::middleware('auth')->group(function () {
         return response()->json(['success' => true, 'message' => 'Pemegang berhasil dihapus.']);
     });
     Route::delete('/api/consumable-categories/{id}', [ConsumableCategoryController::class, 'destroy']);
+    Route::put('/api/consumable-categories/{id}', [ConsumableCategoryController::class, 'update']);
     Route::delete('/api/consumable-units/{id}', [ConsumableUnitController::class, 'destroy']);
+    Route::put('/api/consumable-units/{id}', [ConsumableUnitController::class, 'update']);
 
     Route::delete('/api/locations/{id}', function ($id) {
-        Gate::authorize('admin-only');
+        Gate::authorize('staff-access');
         $item = Location::findOrFail($id);
         if ($item->products()->exists()) {
             return response()->json(['success' => false, 'message' => 'Lokasi tidak bisa dihapus karena masih digunakan oleh '.$item->products()->count().' produk.'], 422);

@@ -33,9 +33,9 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === 'admin';
         });
 
-        // Aturan 2: Staff hanya boleh melihat dan menambah (opsional)
+        // Aturan 2: Staff/Manager hanya boleh melihat dan menambah (opsional)
         Gate::define('staff-access', function (User $user) {
-            return $user->role === 'admin' || $user->role === 'staff';
+            return $user->role === 'admin' || $user->role === 'manager' || $user->role === 'staff';
         });
 
         // View Composer untuk data notifikasi (Navbar)

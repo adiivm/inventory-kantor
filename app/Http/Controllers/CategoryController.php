@@ -24,9 +24,26 @@ class CategoryController extends Controller
         return response()->json($category);
     }
 
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|unique:categories,name,'.$id,
+        ], [
+            'name.unique' => 'Nama kategori ini sudah ada di daftar!',
+        ]);
+
+        $category = Category::findOrFail($id);
+        $old = $category->name;
+        $category->update(['name' => $request->name]);
+
+        Activity::logUpdate('master', "Kategori {$old} → {$category->name}", $category, $category->toArray());
+
+        return response()->json(['success' => true, 'message' => 'Kategori berhasil diupdate.', 'data' => $category]);
+    }
+
     public function destroy($id)
     {
-        Gate::authorize('admin-only');
+        Gate::authorize('staff-access');
 
         $category = Category::findOrFail($id);
 

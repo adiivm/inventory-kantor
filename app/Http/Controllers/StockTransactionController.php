@@ -175,7 +175,7 @@ class StockTransactionController extends Controller
 
             $item->refresh();
             if ($item->current_stock <= $item->min_stock) {
-                $recipients = User::whereIn('role', ['admin', 'staff'])->get();
+                $recipients = User::whereIn('role', ['admin', 'manager', 'staff'])->get();
                 Notification::send($recipients, new LowStockNotification($item));
             }
 

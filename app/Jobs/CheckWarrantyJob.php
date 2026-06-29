@@ -43,8 +43,8 @@ class CheckWarrantyJob implements ShouldQueue
             return;
         }
 
-        $admins = User::where('role', 'admin')->get();
+        $recipients = User::whereIn('role', ['admin', 'manager', 'staff'])->get();
 
-        Notification::send($admins, new WarrantyCriticalAlert($all));
+        Notification::send($recipients, new WarrantyCriticalAlert($all));
     }
 }
