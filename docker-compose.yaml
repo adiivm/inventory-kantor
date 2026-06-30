@@ -50,16 +50,6 @@ services:
     networks:
       - inventory-network
 
-  dnsmasq:
-    image: strm/dnsmasq:latest
-    container_name: inventory-dns
-    network_mode: host
-    cap_add:
-      - NET_ADMIN
-    volumes:
-      - ./docker/dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
-    restart: unless-stopped
-
 networks:
   inventory-network:
     driver: bridge
