@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libgd-dev \
     libzip-dev \
     cron \
+    postgresql-client \
     && docker-php-ext-install pdo pdo_mysql pdo_pgsql gd zip
 
 RUN echo "* * * * * root cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1" > /etc/cron.d/laravel-scheduler \

@@ -232,6 +232,310 @@ Route::middleware('auth')->group(function () {
         return response()->json(['success' => true]);
     })->name('notifications.read');
 
+    Route::get('/backup', function () {
+        Gate::authorize('admin-only');
+        return view('backup_index');
+    })->name('backup.index');
+
+    Route::get('/backup/run', function () {
+        Gate::authorize('admin-only');
+
+        $backupDir = base_path('backups');
+        if (!is_dir($backupDir)) {
+            @mkdir($backupDir, 0755, true);
+        }
+
+        $date = date('Ymd_His');
+        $dbFile = "$backupDir/db_$date.sql";
+        $imagesFile = "$backupDir/images_$date.tar.gz";
+
+        $host = config('database.connections.pgsql.host');
+        $user = config('database.connections.pgsql.username');
+        $pass = config('database.connections.pgsql.password');
+        $db = config('database.connections.pgsql.database');
+
+        $cmd = "PGPASSWORD=" . escapeshellarg($pass)
+            . " pg_dump -h $host -U $user $db > " . escapeshellarg($dbFile)
+            . " 2>&1";
+
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0 || !file_exists($dbFile)) {
+            return response()->json(['success' => false, 'message' => 'Backup gagal']);
+        }
+
+        if (is_dir(storage_path('app/public'))) {
+            exec("tar -czf " . escapeshellarg($imagesFile)
+                . " -C " . escapeshellarg(dirname(storage_path('app/public')))
+                . " " . basename(storage_path('app/public')) . " 2>&1");
+        }
+
+        foreach (glob("$backupDir/db_*.sql") as $f) {
+            if (time() - filemtime($f) > 7 * 86400) @unlink($f);
+        }
+        foreach (glob("$backupDir/images_*.tar.gz") as $f) {
+            if (time() - filemtime($f) > 7 * 86400) @unlink($f);
+        }
+
+        $size = filesize($dbFile);
+        $sizeMb = round($size / 1024 / 1024, 2);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Backup berhasil!\nDatabase: db_$date.sql (" . number_format($sizeMb, 2) . " MB)\nLokasi: $backupDir",
+        ]);
+    })->name('backup.run');
+
+    Route::get('/backup/download', function () {
+        Gate::authorize('admin-only');
+
+        $host = config('database.connections.pgsql.host');
+        $user = config('database.connections.pgsql.username');
+        $pass = config('database.connections.pgsql.password');
+        $db = config('database.connections.pgsql.database');
+
+        $date = date('Ymd_His');
+        $tmpDir = sys_get_temp_dir() . '/backup_' . $date;
+        @mkdir($tmpDir, 0755, true);
+
+        $sqlFile = "$tmpDir/db_$date.sql";
+        $cmd = "PGPASSWORD=" . escapeshellarg($pass)
+            . " pg_dump -h $host -U $user $db > " . escapeshellarg($sqlFile)
+            . " 2>&1";
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0 || !file_exists($sqlFile)) {
+            return response()->json(['success' => false, 'message' => 'Backup gagal']);
+        }
+
+        $publicPath = storage_path('app/public');
+        $imagesTar = "$tmpDir/images_$date.tar.gz";
+        if (is_dir($publicPath) && glob("$publicPath/*")) {
+            exec("tar -czf " . escapeshellarg($imagesTar)
+                . " -C " . escapeshellarg(dirname($publicPath))
+                . " " . basename($publicPath) . " 2>&1");
+        }
+
+        register_shutdown_function(function () use ($tmpDir) {
+            exec("rm -rf " . escapeshellarg($tmpDir) . " 2>&1");
+        });
+
+        // Zip both files together
+        $zipFile = "$tmpDir/backup_$date.zip";
+        exec("zip -j " . escapeshellarg($zipFile) . " " . escapeshellarg($sqlFile) . " " . escapeshellarg($imagesTar) . " 2>&1");
+
+        if (!file_exists($zipFile)) {
+            // Fallback: send sql only
+            return response()->download($sqlFile, "db_$date.sql")->deleteFileAfterSend(true);
+        }
+
+        return response()->download($zipFile, "backup_$date.zip")->deleteFileAfterSend(true);
+    })->name('backup.download');
+
+    Route::get('/backup/files', function () {
+        Gate::authorize('admin-only');
+
+        $backupDir = base_path('backups');
+        if (!is_dir($backupDir)) {
+            return response()->json([]);
+        }
+
+        $files = [];
+        foreach (glob("$backupDir/*.sql") as $f) {
+            $files[] = ['name' => basename($f), 'type' => 'sql', 'size' => filesize($f), 'date' => date('d/m/Y H:i', filemtime($f))];
+        }
+        foreach (glob("$backupDir/*.tar.gz") as $f) {
+            $files[] = ['name' => basename($f), 'type' => 'tar.gz', 'size' => filesize($f), 'date' => date('d/m/Y H:i', filemtime($f))];
+        }
+
+        return response()->json($files);
+    })->name('backup.files');
+
+    Route::post('/backup/restore', function () {
+        Gate::authorize('admin-only');
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $file = $data['file'] ?? '';
+        $imageFile = $data['image_file'] ?? '';
+
+        $backupDir = base_path('backups');
+        $filePath = "$backupDir/" . basename($file);
+
+        if (!file_exists($filePath)) {
+            return response()->json(['success' => false, 'message' => 'File .sql tidak ditemukan.']);
+        }
+
+        $host = config('database.connections.pgsql.host');
+        $user = config('database.connections.pgsql.username');
+        $pass = config('database.connections.pgsql.password');
+        $db = config('database.connections.pgsql.database');
+
+        $cmd = "PGPASSWORD=" . escapeshellarg($pass)
+            . " psql -h $host -U $user -d $db < " . escapeshellarg($filePath)
+            . " 2>&1";
+
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            return response()->json(['success' => false, 'message' => 'Restore gagal: ' . implode("\n", $output)]);
+        }
+
+        // Restore images jika user memilih file .tar.gz
+        if ($imageFile) {
+            $imagesFilePath = "$backupDir/" . basename($imageFile);
+            if (file_exists($imagesFilePath)) {
+                $imagesPath = storage_path('app/public');
+                exec("tar -xzf " . escapeshellarg($imagesFilePath)
+                    . " -C " . escapeshellarg(dirname($imagesPath)) . " 2>&1");
+            }
+        } else {
+            // Auto-detect matching images (backward compatibility)
+            $prefix = preg_replace('/^db_|\.sql$/', '', basename($file));
+            $imagesFile = "$backupDir/images_$prefix.tar.gz";
+            if (file_exists($imagesFile)) {
+                $imagesPath = storage_path('app/public');
+                exec("tar -xzf " . escapeshellarg($imagesFile)
+                    . " -C " . escapeshellarg(dirname($imagesPath)) . " 2>&1");
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Database ' . ($imageFile ? '+ gambar ' : '') . 'berhasil direstore dari ' . basename($file)]);
+    })->name('backup.restore');
+
+    Route::post('/backup/restore/upload', function () {
+        Gate::authorize('admin-only');
+
+        $request = request();
+        if (!$request->hasFile('file')) {
+            return response()->json(['success' => false, 'message' => 'Pilih file .sql atau .tar.gz terlebih dahulu.']);
+        }
+
+        $file = $request->file('file');
+        $ext = $file->getClientOriginalExtension();
+        $isTarGz = str_ends_with($file->getClientOriginalName(), '.tar.gz');
+
+        if ($ext !== 'sql' && !$isTarGz) {
+            return response()->json(['success' => false, 'message' => 'Hanya file .sql atau .tar.gz yang diizinkan.']);
+        }
+
+        $backupDir = base_path('backups');
+        $prefix = $isTarGz ? 'images_' : 'db_';
+        $fileName = $prefix . 'upload_' . date('Ymd_His') . '_' . $file->getClientOriginalName();
+        $file->move($backupDir, $fileName);
+
+        $filePath = "$backupDir/$fileName";
+        $host = config('database.connections.pgsql.host');
+        $user = config('database.connections.pgsql.username');
+        $pass = config('database.connections.pgsql.password');
+        $db = config('database.connections.pgsql.database');
+
+        if ($isTarGz) {
+            // Just store it, restore will be done later via dropdown
+            return response()->json(['success' => true, 'message' => 'File gambar berhasil diupload sebagai ' . $fileName]);
+        }
+
+        $cmd = "PGPASSWORD=" . escapeshellarg($pass)
+            . " psql -h $host -U $user -d $db < " . escapeshellarg($filePath)
+            . " 2>&1";
+
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            return response()->json(['success' => false, 'message' => 'Restore gagal: ' . implode("\n", $output)]);
+        }
+
+        // Auto-restore matching images
+        $prefix = preg_replace('/^db_|\.sql$/', '', $fileName);
+        $imagesFile = "$backupDir/images_$prefix.tar.gz";
+        if (file_exists($imagesFile)) {
+            $imagesPath = storage_path('app/public');
+            exec("tar -xzf " . escapeshellarg($imagesFile)
+                . " -C " . escapeshellarg(dirname($imagesPath)) . " 2>&1");
+        }
+
+        return response()->json(['success' => true, 'message' => 'Database berhasil direstore dari ' . $fileName]);
+    })->name('backup.restore.upload');
+
+    Route::delete('/backup/delete', function () {
+        Gate::authorize('admin-only');
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $file = $data['file'] ?? '';
+
+        $backupDir = base_path('backups');
+        $filePath = "$backupDir/" . basename($file);
+
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+
+        return response()->json(['success' => true]);
+    })->name('backup.delete');
+
+    Route::post('/backup/reset', function () {
+        Gate::authorize('admin-only');
+
+        // 1. Backup otomatis dulu
+        $backupDir = base_path('backups');
+        if (!is_dir($backupDir)) {
+            @mkdir($backupDir, 0755, true);
+        }
+
+        $date = date('Ymd_His');
+        $dbFile = "$backupDir/db_$date.sql";
+
+        $host = config('database.connections.pgsql.host');
+        $user = config('database.connections.pgsql.username');
+        $pass = config('database.connections.pgsql.password');
+        $db = config('database.connections.pgsql.database');
+
+        $cmd = "PGPASSWORD=" . escapeshellarg($pass)
+            . " pg_dump -h $host -U $user $db > " . escapeshellarg($dbFile)
+            . " 2>&1";
+
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0 || !file_exists($dbFile)) {
+            return response()->json(['success' => false, 'message' => 'Backup gagal, reset dibatalkan.']);
+        }
+
+        // Backup images
+        $imagesFile = "$backupDir/images_$date.tar.gz";
+        if (is_dir(storage_path('app/public'))) {
+            exec("tar -czf " . escapeshellarg($imagesFile)
+                . " -C " . escapeshellarg(dirname(storage_path('app/public')))
+                . " " . basename(storage_path('app/public')) . " 2>&1");
+        }
+
+        // 2. Truncate all data
+        DB::statement('TRUNCATE TABLE distribution_details CASCADE');
+        DB::statement('TRUNCATE TABLE distribution_headers CASCADE');
+        DB::statement('TRUNCATE TABLE stock_transactions CASCADE');
+        DB::statement('TRUNCATE TABLE audit_logs CASCADE');
+        DB::statement('TRUNCATE TABLE product_logs CASCADE');
+        DB::statement('TRUNCATE TABLE product_images CASCADE');
+        DB::statement('TRUNCATE TABLE products CASCADE');
+        DB::statement('TRUNCATE TABLE consumable_items CASCADE');
+        DB::statement('TRUNCATE TABLE suppliers CASCADE');
+        DB::statement('TRUNCATE TABLE activity_logs CASCADE');
+        DB::statement('TRUNCATE TABLE categories CASCADE');
+        DB::statement('TRUNCATE TABLE consumable_categories CASCADE');
+        DB::statement('TRUNCATE TABLE consumable_units CASCADE');
+        DB::statement('TRUNCATE TABLE divisions CASCADE');
+        DB::statement('TRUNCATE TABLE held_bies CASCADE');
+        DB::statement('TRUNCATE TABLE locations CASCADE');
+
+        // Hapus file gambar
+        $publicPath = storage_path('app/public');
+        foreach (glob("$publicPath/products/*") as $f) @unlink($f);
+        foreach (glob("$publicPath/audit/*") as $f) @unlink($f);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Backup otomatis: db_$date.sql\nSemua data berhasil di-reset.",
+        ]);
+    })->name('backup.reset');
+
     /** --- ACTIVITY LOGS --- **/
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity.logs');
     Route::get('/activity-logs/{id}', [ActivityLogController::class, 'show']);

@@ -82,6 +82,9 @@
                 <a href="{{ route('activity.logs') }}" class="sidebar-link {{ request()->is('activity-logs*') ? 'active' : '' }}">
                     <i class="bi bi-activity"></i> <span>Activity Logs</span>
                 </a>
+                <a href="{{ route('backup.index') }}" class="sidebar-link {{ request()->is('backup*') ? 'active' : '' }}">
+                    <i class="bi bi-cloud-arrow-up"></i> <span>Backup / Restore</span>
+                </a>
                 @endif
                 <a href="{{ route('profile.index') }}" class="sidebar-link {{ request()->is('profile*') ? 'active' : '' }}">
                     <i class="bi bi-person-circle"></i> <span>My Profile</span>
@@ -98,4 +101,5 @@
             </button>
         </form>
     </div>
+
 </nav>
